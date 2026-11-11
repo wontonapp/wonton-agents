@@ -47,7 +47,8 @@ release_notes() {
 }
 
 # 上一个本插件的 tag：Dependabot 的升级 PR 只改镜像，version 和 release_notes 攒到发版时一起改。
-last_tag="$(git tag -l "${prefix}v*" --sort=-v:refname | head -1)"
+# 正在发的 tag 自己不算「上一个」：推 tag 触发时全量 tag 已在本地，首个版本会和它自己比。
+last_tag="$(git tag -l "${prefix}v*" --sort=-v:refname | grep -vx "$tag" | head -1)"
 if [[ -n "$last_tag" ]]; then
   [[ "$(printf '%s\n%s\n' "$tag" "$last_tag" | sort -V | tail -1)" == "$tag" ]] ||
     die "version $version 不比上一个 tag $last_tag 新：发版前把清单的 version 改成新版本"
