@@ -32,7 +32,7 @@ services:
 
   bridge:
     # 桥镜像的版本和摘要只写这一处；桥升级改这里，再重新生成所有子目录。
-    image: ghcr.io/wontonapp/wonton-acp-bridge:0.1.0-beta.2@sha256:5b34b9dadd5548182034b972dfffce64ec62b31c26a65a97bf3fb7f5a318cb80
+    image: ghcr.io/wontonapp/wonton-acp-bridge:0.2.1@sha256:4523c3cfef196d27521d8eaa4f4bb33784fa0fc01e1fe3071f6eb39ff0721c15
     user: "65532:65532"
     restart: unless-stopped
     depends_on:
