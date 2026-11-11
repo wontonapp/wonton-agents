@@ -2,7 +2,14 @@
 # Kimi Code 的冒烟探测：登录网页是能直接看的面；Agent 没有用户体系，数据探针写工作区标记。
 # 变量和助手（dweb、SMOKE_*）见 scripts/probes.sh 的说明。
 
-web_assert() { grep -qF 'Kimi'; }
+web_assert() {
+  # 页面是 JS 渲染的：静态 HTML 只有骨架，登录列表从 /api/logins 拿（identity_check 同款助手）。
+  grep -q '/api/logins' || { echo "不是底座登录网页（没有 /api/logins）"; return 1; }
+  local logins
+  logins="$(dweb /api/logins)" || { echo "登录网页 API 打不开：$logins"; return 1; }
+  grep -q '"id": "kimi-account"' <<<"$logins" || { echo "列表里没有 kimi-account：$logins"; return 1; }
+  grep -q '"id": "platform-key"' <<<"$logins" || { echo "列表里没有 platform-key：$logins"; return 1; }
+}
 
 # Agent 没有用户体系：登录网页认的是核心网关的会话。probes.sh 从这份文件读这两个变量。
 export IDENTITY_NA=1
