@@ -11,7 +11,7 @@ web_assert() { # 标准输入：登录网页（底座 wonton-agent 的登录页�
 
 # 数据：Agent 的工作区文件和登录态会话之间一直在用（docker-compose.yml 的 ${WONTON_BOT_DATA}/workspace、agent 卷）。
 # data_write 在 agent 容器的工作区落一个标记文件，data_check 在升级、重装后读回比对；内容带随机令牌。
-_cc_container() { printf 'wonton-%s--%s--agent' "${SMOKE_INSTANCE:-}" "${SMOKE_SLUG:-}"; }
+_cc_container() { running_container "wonton-${SMOKE_INSTANCE:-}--${SMOKE_SLUG:-}--agent"; }
 
 _cc_marker_file() { # 标记文件：SMOKE_STATE 在 dev.sh probes 里是目录，目录里放标记文件
   if [[ -d "${SMOKE_STATE:-}" ]]; then printf '%s/data-marker' "$SMOKE_STATE"; else printf '%s' "${SMOKE_STATE:-}"; fi
