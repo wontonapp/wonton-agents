@@ -1,0 +1,96 @@
+name: 检查
+
+# 按改动的路径分作业：只改一家的 PR 只检查那一家；改 base/、template/、gen/、scripts/ 或工作流本身就是全部。
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      core-image:
+        description: 核心镜像（如 ghcr.io/wontonapp/wonton-core:sha-<完整 40 位提交号>，钉在某次合并上复测；留空用 :main）
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  changed:
+    runs-on: ubuntu-24.04
+    outputs:
+      agents: ${{ steps.plan.outputs.agents }}
+      base: ${{ steps.plan.outputs.base }}
+      shared: ${{ steps.plan.outputs.shared }}
+    steps:
+      # 要完整历史：基线提交和 head 都要能拿来 diff。
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: python3 .github/changed.py
+
+  base:
+    needs: changed
+    if: needs.changed.outputs.base == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 文件和函数长度检查
+        run: python3 base/scripts/check-size.py
+      - name: 测试
+        run: python3 -m unittest discover -s base/tests -v
+      - name: 构建镜像（amd64）
+        run: docker build -t wonton-agent-base:ci base
+
+  shared:
+    needs: changed
+    if: needs.changed.outputs.shared == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: ShellCheck
+        run: shellcheck scripts/*.sh
+      - name: dev.sh 的 logs 和 diag（假 docker，不用真的 Docker）
+        run: scripts/dev_test.sh
+      # 公开仓库看不到核心的设计记录，注释和文档里写编号只会留下死链。
+      - name: 不引用 ADR 编号
+        run: |
+          if git grep -nIE 'ADR-?[0-9]{2,4}'; then
+            echo "上面这些行引用了 ADR 编号：读者看不到 ADR，把要说的原因直接写出来。" >&2
+            exit 1
+          fi
+
+  agent:
+    needs: changed
+    if: needs.changed.outputs.agents != '[]'
+    runs-on: ubuntu-24.04
+    strategy:
+      # 一家失败不挡别家出结果。
+      fail-fast: false
+      matrix:
+        agent: ${{ fromJSON(needs.changed.outputs.agents) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 生成结果是最新的
+        if: hashFiles('gen/gen.py') != ''
+        run: python3 gen/gen.py --check
+      - name: ShellCheck
+        run: shellcheck agents/${{ matrix.agent }}/*.sh scripts/*.sh
+      # 官方要求（镜像按摘要固定、健康检查、标签、许可证、作者、声明）里，自家镜像的摘要要等发布流程推完镜像才写回
+      # compose，新的一家在第一次发布前满足不了；官方要求同时挡住“摘要没更新”的回归。
+      - name: 插件包检查
+        env:
+          WONTON_CORE_IMAGE: ${{ inputs.core-image }}
+          WONTON_PLUGIN: agents/${{ matrix.agent }}
+        run: scripts/check.sh --official
+      - name: 构建 Agent 镜像（不推送）
+        if: hashFiles(format('agents/{0}/image/Dockerfile', matrix.agent)) != ''
+        run: docker build -t "wonton-agent-${AGENT}:ci" -f "agents/${AGENT}/image/Dockerfile" "agents/${AGENT}/image"
+        env:
+          AGENT: ${{ matrix.agent }}

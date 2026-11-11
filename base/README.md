@@ -1,0 +1,281 @@
+# wonton-agent-base
+
+本目录是 `wonton-agents` 仓库的底座，构建成 `ghcr.io/wontonapp/wonton-agent-base`；下面的命令都在本目录里执行。
+
+Wonton 的 ACP Agent 插件（Codex、omp、Claude Code、Kimi……）共用这个底座镜像：按职责拆开
+的入口包（`wonton_agent/`）+ ACP 转发 + 模型网关约定 + 闭源 CLI 首次启动下载。做新 Agent
+插件时不再各写一份入口脚本，子镜像只写「装哪个 CLI、ACP 怎么启动、网关怎么写」——见
+`examples/echo-agent/`，四个文件就能跑。
+
+## 每次容器启动，入口做什么
+
+`/usr/local/bin/wonton-agent`（Python 3 标准库）只是几行启动壳：把
+`/usr/local/lib/wonton-agent/wonton_agent/` 加进 `sys.path` 再调 `main`。包按职责分模块
+（config、install、assets、gateway、relay、login、web、main），读
+`/etc/wonton-agent/agent.toml`，依次：
+
+1. **按需安装闭源 CLI**（`[install]`，可选）：首次启动从官方源下载到数据卷
+   `/data/agent/tools/<名字>/<版本>/`，摘要核对通过才落盘；版本目录已存在就不重下。
+   下载走容器里核心注入的代理变量（`HTTPS_PROXY` 等），入口不自己写代理。
+2. **装 skill 和系统提示**（`[skills]`/`[prompt]`，可选）：把镜像里
+   `/usr/local/share/wonton-agent/skills/*` 和 `prompt.md` 拷到 agent.toml 指定的目录，
+   每次启动覆盖，跟着插件版本走。
+3. **模型网关**（`[gateway]`，可选）：核心总会注入 `WONTON_MODEL_BASE_URL`、
+   `WONTON_MODEL_API_KEY`、`WONTON_MODEL_DEFAULT`（没接网关时是空字符串，网关就绪后核心
+   重建容器并注入值）。三个变量都有值时调钩子 `apply`，任一为空调 `clear`。
+   `[gateway.env]`（可选）把这些值按 `目标变量 = 来源变量` 加进 `[acp]` 子进程的环境，
+   详见「模型网关钩子」。
+4. **启动 ACP 转发**：在 `$WONTON_ACP_SOCKET`（默认 `/data/run/acp.sock`）监听；每个连接
+   起一次 `[acp] command`（stdio 说 ACP）双向转发，连接断了杀掉子进程；转发时去掉终端
+   配色码（`[acp] strip_ansi = false` 可关）；子进程 stderr 直接进容器日志。
+5. **终端登录**（`[[login]]`，可选）：配了才有。initialize 应答里的 authMethods 改写成这些
+   终端登录，并在 `<ACP socket 去掉扩展名>.login.sock`（默认 `/data/run/acp.login.sock`）
+   跑登录进程；登录成功后入口自己退出，容器按 restart 策略重启，钩子按新登录态重新选路。
+6. **登录网页**（`[web]`，可选）：配了才有。在 `0.0.0.0:<port>` 起一个登录页面，插件清单把
+   它声明成 `webui`（核心网关挡在前面，从 App 的插件页打开）：列出 `[[login]]` 和状态
+   （`status` 命令），点登录看输出、回一行、取消。和登录 socket 共用一把串行锁，一次一个。
+
+socket 在前面几步全部成功之后才建，compose 的健康检查以 socket 文件为准——socket 不存在
+就是还没就绪（首启下载 CLI 可能要几分钟），桥和核心会重试。`[acp]`/`[[login]]` 命令的可执行文件
+在监听之前就校验，起不来直接退出，健康检查不会带着坏配置变绿。
+
+## agent.toml
+
+```toml
+# 闭源 CLI：首次启动从官方源下载（可选；开源 CLI 直接打进子镜像就省掉这段）。
+[[install]]
+name = "kimi"                      # 装到 /data/agent/tools/kimi/<version>/
+version = "2.4.0"
+
+# 来源一：npm 包（registry.npmjs.org 的 tgz）。integrity 是 npm dist.integrity
+# 的 sha512-<base64>（或 128 位十六进制）。registry 字段可省，缺省官方源。
+source = "npm"
+package = "@scope/kimi-cli"
+integrity = "sha512-h8Fw1D3l…"
+
+# 来源二：按架构给 URL 加 sha256。format = "binary"（单个可执行文件，缺省）
+# 或 "tgz"（解包安装）。binary 装完是 <版本目录>/<URL 文件名>；tgz 解包到版本目录，
+# 入口路径看包内布局。
+# source = "url"
+# url_amd64  = "https://example.com/kimi-2.4.0-linux-x64"
+# url_arm64  = "https://example.com/kimi-2.4.0-linux-arm64"
+# sha256_amd64  = "<64 位十六进制>"
+# sha256_arm64  = "<64 位十六进制>"
+# format = "binary"
+
+[skills]
+target = "~/.kimi/skills"          # 镜像里 skills/* 拷到这里
+
+[prompt]
+target = "~/.kimi/PROMPT.md"       # 可选：镜像里 prompt.md 拷到这里
+
+[gateway]
+hook = "/usr/local/lib/wonton-agent/gateway"   # 插件自己的可执行文件，收 apply/clear
+
+[acp]
+command = ["/data/agent/tools/kimi/2.4.0/bin/kimi-acp"]   # 跟包里 package.json 的 bin 字段
+strip_ansi = true                  # 缺省 true
+```
+
+npm 来源把包的 tgz 解到版本目录，再跑 `npm install --prefix <版本目录> --ignore-scripts`
+装依赖：不执行包里的安装脚本，闭源 CLI 的安装代码不碰容器其余部分。CLI 本体跟着包走，
+在包里 package.json 的 `bin` 字段指向的位置——多数 CLI 包是 `<版本目录>/bin/<命令>`，也有
+顶层入口（`<版本目录>/cli.js`）——`[acp] command` 按包的 bin 字段填。npm install 只把包
+声明的依赖装进 `<版本目录>/node_modules/`，不搬 CLI 自己。integrity 只核对顶层包，
+依赖按包里的 npm-shrinkwrap.json 锁定（没有就按 semver 取当时的版本），挑 CLI 时优先选
+自带 shrinkwrap 或单文件发布的。
+`[install]` 的 name 只允许字母数字点下划线连字符；配置有拼错的段、缺字段、摘要不合法，
+入口启动即报错退出，写清是哪一项。
+
+### 开源 CLI：打进子镜像
+
+```toml
+[acp]
+command = ["/usr/local/bin/omp", "acp"]
+
+[skills]
+target = "~/.agents/skills"
+```
+
+### 闭源 CLI：首次启动下载
+
+见上面完整例子。`[acp] command` 直接指向数据卷里的安装位置：npm 源跟包的 bin 字段
+（常见 `<版本目录>/bin/<命令>`），url 源 binary 是 `<版本目录>/<URL 文件名>`，tgz 解包
+在 `<版本目录>/` 下、入口看包内布局；容器重建（升级、网关就绪）时数据卷还在，不会重下。
+
+### 终端登录：[[login]]
+
+Claude Code、CodeBuddy Code 这类要终端登录的 CLI 用（可选，可多段）。有这段时，ACP
+initialize 应答里的 authMethods 会改成这些登录（`type` 都是 `terminal`），聊天里的
+`/wonton login <id>` 由桥转成对登录 socket 的请求，入口按配置起登录命令：
+
+```toml
+[[login]]
+id = "chatgpt"                         # /wonton login <id> 用它；字母数字点下划线连字符，不重复
+name = "ChatGPT 账号（设备码）"          # 聊天里列出的名字
+command = ["/usr/local/bin/codex", "login", "--device-auth"]
+stdin = "lines"                        # 缺省 lines：桥发的每行原样转给进程。
+                                       # line_then_eof：转第一行后关 stdin（读 stdin 到 EOF 才
+                                       # 收 key 的 CLI）；桥照旧保持连接收输出。
+restart_on_success = true              # 缺省 true：退出码 0 时回完 exit 帧等 2 秒入口退出，
+                                       # 容器按 restart 策略重启，钩子按新登录态重新选路
+status = ["codex", "login", "status"]  # 可选：状态命令，退出码 0 = 已登录，非 0 = 没登录；
+                                       # 登录网页的列表显示用，没写就显示"不确定"，不猜
+```
+
+入口同时在 `<ACP socket 去掉扩展名>.login.sock`（默认 `/data/run/acp.login.sock`，0600）
+监听，协议和桥的约定一致：桥先发一行 `{"methodId","args","env"}`，按 `methodId` 找到
+`[[login]]` 段（请求里的 `args` 忽略，只用配置里的 `command`；`env` 合并进环境）；
+之后桥发的每行文本写进登录进程 stdin，登录进程 stdout/stderr 去配色码回
+`{"out"}`/`{"err"}`（不完整的一行等 200 毫秒没有新字节就先发：Claude Code 的
+`Paste code here if prompted > ` 这类不带换行的提示不用等下一次输出），输出收完回
+`{"exit": 数字}`。桥断开时登录进程被收掉（stdin 关掉等
+2 秒，terminate 2 秒，kill）；登录串行，一次一个。没有 `[[login]]` 时登录 socket 不建，
+Agent 自己的 agent 类登录照旧走 ACP authenticate。
+
+### 登录网页：[web]
+
+不想让主人进容器、也不用把回码贴进聊天：配了 `[web]`，入口在 `0.0.0.0:<port>` 起一个登录
+页面（没有 `[[login]]` 而写了 `[web]` 启动即报错）。插件清单把它声明成 `webui`，核心网关
+挡在前面，只有用户打得开，从 App 的插件页打开：
+
+```yaml
+x-wonton:
+  webui:
+    service: agent
+    port: 8080        # 和 [web] 的 port 一致
+    sso: none         # 网关只校验用户会话，网页不再有自己的登录
+    path: /
+```
+
+页面列出每个 `[[login]]` 和状态：`status` 命令退出码 0 = 已登录、非 0 = 没登录，没写
+`status` 显示"不确定"，起不来或超时（10 秒）算查询出错，原因收进"详情"。点登录起该段的
+`command`：输出逐行显示（去掉配色码，http(s) 链接可点，设备码原样显示），输入框把一行写进
+进程 stdin（`stdin` 模式语义和聊天登录一致），按钮"取消"结束进程；成功且
+`restart_on_success` 时提示 Agent 正在重启。和聊天登录共用一把串行锁，一次一个：有登录
+在进行时按钮不可点，写明"有一个登录正在进行"。输入内容不写进任何日志；健康检查不变
+（仍以 ACP socket 为准）。
+
+
+## 模型网关钩子
+
+钩子是子镜像提供的可执行文件，底座带着全部环境变量调它：
+
+- `apply`：三个 `WONTON_MODEL_*` 变量都有值。钩子把网关写进这个 Agent 的配置。
+- `clear`：任一变量为空。钩子把网关从配置里移出去。
+
+**密钥规则**：配置里只引用变量名（如 `env_key = "WONTON_MODEL_API_KEY"`），值留在环境变量里；
+Agent 不支持从环境变量读时才把值写进文件，且文件权限 0600。钩子非零退出、不可执行，
+容器启动失败并写明原因。
+
+**Agent 配置不展开 `${VAR}` 时用 `[gateway.env]`**：有的 Agent（Claude Code）的配置文件
+不展开 `${VAR}`，钩子只好把 key 的值写进文件。给 `[gateway]` 加可选的 `env` 表，
+`目标变量 = 来源变量`，网关接好（三个 `WONTON_MODEL_*` 都有值，和钩子 `apply` 同一个条件）
+时底座把解析出来的值加进 `[acp]` 子进程的环境，`[[login]]` 子进程不加；没接网关或变量不全
+（钩子 `clear`）时不加。映射的来源变量没值，入口启动即报错。钩子于是可以只往配置里写
+变量名，key 依旧不落盘：
+
+```toml
+[gateway]
+hook = "/usr/local/lib/wonton-agent/gateway"
+
+[gateway.env]
+ANTHROPIC_AUTH_TOKEN = "WONTON_MODEL_API_KEY"   # 子进程拿到 WONTON_MODEL_API_KEY 的值
+ANTHROPIC_BASE_URL = "WONTON_MODEL_BASE_URL"
+```
+
+## 子镜像怎么写
+
+```dockerfile
+# 发布后把 digest 固定上，防镜像漂移：
+# FROM ghcr.io/wontonapp/wonton-agent-base:0.1.0@sha256:<发布后的摘要>
+ARG BASE_IMAGE=ghcr.io/wontonapp/wonton-agent-base:0.1.0
+FROM ${BASE_IMAGE}
+COPY agent.toml /etc/wonton-agent/
+COPY --chmod=0755 gateway /usr/local/lib/wonton-agent/gateway
+COPY skills/ /usr/local/share/wonton-agent/skills/
+```
+
+两个权限的坑：底座以 `USER 65532` 收尾，子镜像里 `RUN chmod` 会因非 root 失败（要跑命令就先
+`USER root` 再 `USER 65532:65532` 切回去）；`COPY --chmod` 会连自动创建的目录一起改，往不存在的
+目录里塞 0644 会把目录的 x 位也去掉（读不了）。skill 树直接 `COPY`，源码里的权限位随 git 走。
+
+用户（65532:65532）、`ENTRYPOINT`、`HOME=/data/agent/home`、`WONTON_ACP_SOCKET`、
+`WONTON_AGENT_WORKSPACE` 都从底座继承，不用重写。compose 侧：
+
+```yaml
+services:
+  agent:
+    image: ghcr.io/wontonapp/wonton-agents/xxx:<版本>
+    user: "65532:65532"
+    restart: unless-stopped
+    environment:
+      WONTON_ACP_SOCKET: /data/run/acp.sock
+      WONTON_AGENT_WORKSPACE: /workspace
+      # 空值表示没接网关，网关就绪后核心重建容器并注入；底座按有没有值调钩子。
+      WONTON_MODEL_BASE_URL: ${WONTON_MODEL_BASE_URL:-}
+      WONTON_MODEL_API_KEY: ${WONTON_MODEL_API_KEY:-}
+      WONTON_MODEL_DEFAULT: ${WONTON_MODEL_DEFAULT:-}
+      # 出网代理由核心注入，这里不要写代理变量，写了空值会把核心的注入顶掉。
+    volumes:
+      - ${WONTON_BOT_DATA:?需要 Bot 数据目录}/agent:/data/agent
+      - ${WONTON_BOT_DATA}/run:/data/run
+      - ${WONTON_BOT_DATA}/workspace:/workspace
+    healthcheck:
+      test: ["CMD", "test", "-S", "/data/run/acp.sock"]
+      interval: 30s
+      timeout: 5s
+      start_period: 120s      # 首启要下载闭源 CLI，留够
+      start_interval: 2s
+```
+
+## 样例：examples/echo-agent
+
+最小 ACP Agent（回显 prompt）+ `agent.toml` + `Dockerfile`，演示 skill 安装、网关钩子、
+`[[login]]` 和登录网页。本机验证（构建底座和样例、起容器、连 socket 发 `initialize` 和一次
+`session/prompt`，再跑一次样例登录和网页）：
+
+```sh
+docker build -t ab-agent-base:0.1.0 .
+docker build -t ab-echo-agent:0.1.0 examples/echo-agent \
+    --build-arg BASE_IMAGE=ab-agent-base:0.1.0
+docker run -d --name ab-echo-test -p 127.0.0.1::8080 ab-echo-agent:0.1.0
+# 等几秒后连 /data/run/acp.sock 发 ACP 消息，拿回显。
+# 连 /data/run/acp.login.sock 发一行 {"methodId":"sample","args":[],"env":{}} 加一行 key，
+# 拿回 {"out":"logged in"} 和 {"exit":0}；样例 restart_on_success 用缺省 true，
+# 容器随后自己退出（退出码 0）。
+# 登录网页映射在 127.0.0.1 的随机端口上（docker port ab-echo-test 8080 拿到）：
+# curl http://127.0.0.1:<端口>/api/logins 看列表，浏览器打开根路径就是登录页面。
+# 测完 docker rm -f ab-echo-test
+```
+
+## 测试和发布
+
+- `tests/` 是 Python unittest（只用标准库，不连外网，假 HTTP 服务装包）：配置解析、
+  网关 apply/clear、npm 和 URL 两种安装的摘要通过/失败、同版本不重下、socket 往返、
+  登录 socket（lines / line_then_eof / 未知 id / 桥断开收进程 / 成功后入口退出）、
+  登录网页（列表状态 / start→events / input / cancel / 串行拒绝 / 非 JSON 拒绝）。
+  `python3 -m unittest discover -s base/tests -v`（在仓库根执行）
+- 长度检查：`python3 base/scripts/check-size.py`（每个 `.py` 和入口 ≤ 800 行、每个函数 ≤ 100 行，
+  超了退出 1）。仓库根的检查工作流（长度检查 + 测试 + 镜像构建）和发布流程都先跑它。
+- 发布：推 `base/v<VERSION>` 的 tag，发布工作流先跑长度检查和测试，再出
+  amd64+arm64 镜像，推 `ghcr.io/wontonapp/wonton-agent-base:<VERSION>`，版本号在本目录 `VERSION`，
+  摘要写回 `DIGEST`。
+
+## 设计取舍
+
+- **闭源 CLI 不打进发布的镜像**：底座镜像和摘要要能公开复现，闭源 CLI 从官方源按版本和
+  摘要核对后下载到数据卷，由 agent.toml 声明。
+- **终端登录是配置不是代码**：登录命令各家 CLI 不同，底座只做通用搬运——initialize 应答
+  的 authMethods 改写、登录 socket 协议、stdin/stdout/stderr 逐行去配色码、串行、成功后
+  重启容器——具体命令、stdin 模式、是否重启都由 agent.toml 的 `[[login]]` 声明；底座不
+  认识任何一家的登录命令，桥请求里的 `args` 一律忽略。没有 `[[login]]` 时这一切不生效。
+- **登录网页只是聊天登录的另一张脸**：起的是同一段 `command`，走同一把串行锁和会话代码，
+  网页的 start/input/cancel 事件和桥的帧一一对应；底座不学任何一家的登录流程，页面按
+  通用规则渲染（链接可点、设备码不猜）。鉴权靠核心网关（`webui`），底座自己不做用户
+  体系，也不记输入内容。
+- **skill 每次覆盖、不清理旧文件**：HOME 是挂载点，镜像里的内容拷不进去，只能启动时铺；
+  照搬 wonton-plugin-codex 的既有行为。
+- **socket 权限 0600**：只有桥和宿主诊断连得上。
+- **底座不做的事**：不写代理、不放假数据、不静默降级；取不到、校验不过、钩子失败，
+  报错退出让核心看到。
