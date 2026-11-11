@@ -87,10 +87,10 @@ x-wonton:
   id: ai.qwen-code
   version: 0.1.0
   kind: agent
-  title: { zh: Qwen Code, en: Qwen Code }
+  title: { zh: AI 编程助手（Qwen Code）, en: Coding Bot (Qwen Code) }
   description:
-    zh: 阿里巴巴的 Qwen Code 编程 Agent，在聊天里按你的确认动手
-    en: Alibaba's Qwen Code coding agent that acts in chat, asking before it acts
+    zh: 阿里巴巴（通义千问）家的编程助手：在聊天里帮你写代码、改文件、跑命令，动手前先弹卡片问你。直接用模型设置就行，也能填自己的千问 key。
+    en: "Alibaba's Qwen coding bot: it writes code, edits files and runs commands from your chat, asking with a card before it acts. Works with your Models setup, or your own Qwen key."
   icon: icon.svg
   notices: [NOTICE, image/LICENSE.qwen-code]
   author: { name: Wonton plugin authors }
@@ -99,18 +99,17 @@ x-wonton:
   tags: { zh: [AI, 开发], en: [AI, Development] }
   about:
     zh: |
-      Qwen Code 以 Bot 的身份住进聊天。接上模型网关时，模型的调用默认走网关，不用账号，也不用填任何 key。
-      没接网关时 Agent 照样能起来：在插件页的登录网页（默认 Bot）或聊天里发 /wonton login（这个聊天对应的
-      Bot），贴一个自己的 Qwen API key（阿里云百炼 DashScope 的 OpenAI 兼容接口；其他平台的 key 请接网关）。
+      Qwen Code 是阿里巴巴家的编程 AI，住进你的聊天里。默认用模型设置里配好的 AI，不用账号、不用填
+      key；也可以贴上自己的千问 key：在应用页打开登录网页（管默认 Bot）或在聊天里发 /wonton login
+      （管这个聊天的 Bot），贴上 key（阿里云百炼的 key；其他平台的 key 请在模型设置里加）。
 
       会话按 default 模式跑：改文件、跑命令之前经确认卡片问你；Wonton 插件的工具也从聊天里调。
       和它的对话是核心建的加密私聊，重启后接着聊。
     en: |
-      Qwen Code lives in the chat as a bot. With the model gateway connected, models are called through it,
-      with no account and no key to fill in. Without a gateway the agent still starts: open the login page
-      on the plugin screen (default bot) or send /wonton login in the chat (this chat's bot) and paste your
-      own Qwen API key (Alibaba Cloud ModelStudio's OpenAI-compatible endpoint; for keys of other platforms
-      use the model gateway).
+      Qwen Code is Alibaba's coding AI, living in your chat. By default it uses the AI set up in
+      Models — no account, no key. Or paste your own Qwen key: open the sign-in page on the app
+      screen (for the default bot) or send /wonton login in the chat (for this chat's bot) and
+      paste the key (from Alibaba Cloud Model Studio; add keys from other platforms in Models).
 
       Sessions run in default mode: it asks through confirmation cards before editing files or running
       commands; Wonton plugin tools are called from the chat.
@@ -128,7 +127,7 @@ x-wonton:
       - id: api-key
         title: { zh: Qwen API key, en: Qwen API key }
   bot:
-    display_name: { zh: Qwen Code, en: Qwen Code }
+    display_name: { zh: AI 编程助手（Qwen Code）, en: Coding Bot (Qwen Code) }
   bots:
     services: [agent, bridge]
   permissions:
