@@ -1,0 +1,40 @@
+id: ai.deepseek.dsh
+version: 0.1.2
+title: { zh: dsh, en: dsh }
+description:
+  zh: DeepSeek 的编程 Agent（dsh），在聊天里写代码、跑命令
+  en: DeepSeek's coding agent (dsh) that writes code and runs commands in chat
+about:
+  zh: |
+    DeepSeek 的 dsh 以 Bot 的身份住进聊天：模型网关接好时默认走网关，不用账号，也不用填任何 key。
+    它住在自己的容器里，在 /workspace 工作区写代码、跑命令，改工作区之外的文件或出网先经确认卡片问你；
+    Wonton 插件的工具也从聊天里调。没接网关时，在聊天里发 /wonton login（这个聊天对应的 Bot）或从
+    插件页打开登录网页（默认 Bot），贴一个自己的 DeepSeek API key（platform.deepseek.com 创建），
+    登录态存在数据目录，容器重建后还在。
+  en: |
+    DeepSeek's dsh lives in the chat as a bot: when the model gateway is connected it goes through the
+    gateway by default, with no account and no key to fill in. It works in its own container, coding and
+    running commands in /workspace, and asks through confirmation cards before touching files outside it
+    or reaching the network; Wonton plugin tools are called from the chat too. Without the gateway, send
+    /wonton login in the chat (this chat's bot) or open the login page from the plugin screen (default
+    bot) and paste your own DeepSeek API key (created at platform.deepseek.com); the login state stays
+    in the data directory across container rebuilds.
+release_notes:
+  zh: 随 wonton-agents 仓库首发，Agent 层不变；底座与桥由仓库统一提供。
+  en: First release from the wonton-agents repo; the agent layer is unchanged, with the base image and bridge provided by the repo.
+license: MIT
+notices: [NOTICE, image/LICENSE.dsh]
+homepage: https://github.com/deepseek-ai/deepseek-harness
+tags: { zh: [AI, 开发], en: [AI, Development] }
+acp_mode: workspace-write
+memory: 1G
+env:
+  # dsh 的凭据（~/.dsh/.credentials.yaml）、会话和 acp profile 补丁都放在 HOME 下的 .dsh/，数据卷里，容器重建不丢。
+  DSH_HOME: /data/agent/home/.dsh
+  # 官方路由默认随请求回传会话日志和 OTLP 遥测；家里自用，全关。
+  DSH_TELEMETRY_MODE: DISABLED
+  WONTON_MCP_URL: ${WONTON_MCP_URL:?需要 MCP 总线地址}
+login:
+  - id: api-key
+    title: { zh: DeepSeek API key, en: DeepSeek API key }
+webui: true
