@@ -1,0 +1,23 @@
+Wonton 的 OpenCode 插件
+=======================
+
+上游程序
+--------
+
+- OpenCode CLI：Anomaly 的官方程序，https://github.com/anomalyco/opencode ，许可证 MIT，全文见
+  `LICENSE.opencode`（插件目录里的副本，与上游 LICENSE 一致）。
+
+上游程序不打进镜像
+------------------
+
+镜像里没有 OpenCode CLI。容器首次启动时按 agent.toml 的 `[[install]]` 从上游发布 CDN 下载
+2.2.7 并按 sha256 摘要核对（amd64 `89a6cee2…`、arm64 `c1682057…`，全文见仓库里的 agent.toml），
+落盘到数据卷后才监听 ACP socket；摘要不符或下载失败时启动失败，不会带着半套程序跑。
+
+运行时跑的是未改动的官方 CLI。模型默认走云吞的模型网关；官方账号登录在 CLI 自己的
+`opencode auth login` 流程里完成，凭据只写在用户自己的数据目录（SQLite），Wonton 不收集、不留存。
+
+商标
+----
+
+OpenCode 是 Anomaly 的商标。本插件由 Wonton 维护，不是 Anomaly 的官方出品，也没有得到它的背书。
