@@ -1,0 +1,36 @@
+id: ai.kimi-code
+version: 0.1.0
+title: { zh: Kimi Code, en: Kimi Code }
+description:
+  zh: Moonshot AI 的 Kimi Code 命令行编码 Agent，经 ACP 接入聊天
+  en: Moonshot AI's Kimi Code CLI coding agent, wired to chat over ACP
+about:
+  zh: |
+    Kimi Code 是 Moonshot AI 的命令行编码 Agent。装进 Wonton 后，Bot 在和你的私聊里干活：
+    读代码、改文件、跑命令，默认 plan 模式只读不动手，改文件前先把方案说给你。
+
+    模型默认走 Wonton 的模型网关，不用自己的账号；也可以用自己的 Kimi 账号（设备码登录）
+    或 Kimi 开放平台的 API key。插件页有登录网页，聊天里 /wonton login 也行。
+  en: |
+    Kimi Code is Moonshot AI's CLI coding agent. Inside Wonton the bot works in your private
+    chat: reads code, edits files and runs commands. It starts in plan mode (read-only) and
+    proposes before touching files.
+
+    Model requests go through the Wonton model gateway by default, no account needed; you can
+    also log in with your own Kimi account (device code) or a Kimi Platform API key. The plugin
+    page has a login web UI; /wonton login in chat works too.
+release_notes:
+  zh: 首个版本。
+  en: First version.
+license: MIT
+notices: [NOTICE]
+homepage: https://github.com/wontonapp/wonton-agents
+tags: { zh: [AI, 工具], en: [AI, Tools] }
+acp_mode: plan
+memory: 512M
+login:
+  - id: kimi-account
+    title: { zh: Kimi 账号（设备码）, en: Kimi account (device code) }
+  - id: platform-key
+    title: { zh: Kimi 开放平台 API key, en: Kimi Platform API key }
+webui: true
