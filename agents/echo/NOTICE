@@ -1,0 +1,4 @@
+Echo 是 wonton-agents 仓库的最小样例插件，随仓库以 Apache-2.0 分发（见仓库根的 LICENSE）。
+
+它构建在 wonton-agent-base 底座上（同样以 Apache-2.0 分发）。样例的登录是演示用的假登录，
+不连接任何上游服务，也不代表任何上游产品的账号体系。

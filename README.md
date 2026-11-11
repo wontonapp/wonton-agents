@@ -41,7 +41,7 @@ docker build -t ghcr.io/wontonapp/wonton-agent-base:dev base
 | `NOTICE`、许可证文件 | 上游程序、图标来源和商标说明；CLI 的许可证写进清单 `license` |
 | `icon.svg` | 首字母图标 |
 | `smoke-probes.sh` | 冒烟探针：`web_assert`、`identity_check`、`MCP_TOOL`/`mcp_assert`、`data_write`/`data_check` |
-| `docker-compose.yml` | 用 `gen/` 生成后一起提交 |
+| `docker-compose.yml` | 用 `gen/` 生成后一起提交：`python3 gen/gen.py agents/<id>`（生成器用 PyYAML 解析 agent.yaml，MIT 许可证） |
 
 还要实测并在 README 里写明：最严格的模式叫什么、只放行 Wonton MCP 的配置键、内存峰值。这家的差异只放在这个目录里，
 桥和底座不写特例。
@@ -64,7 +64,8 @@ scripts/dev.sh smoke
 ## 检查
 
 `check.yml` 先按改动的路径算出哪些子目录受影响：改 `base/`、`template/`、`gen/` 或 `scripts/` 就是全部。受影响的
-子目录各跑一个作业：`gen --check`、`plugin check --official`、`shellcheck`、构建 Agent 镜像（不推送）；`base/` 另跑
+子目录各跑一个作业：`gen --check`、`plugin check`（非官方；官方要求由发布流程发版前的
+`--official` 把关）、`shellcheck`、构建 Agent 镜像（不推送）；`base/` 另跑
 长度检查、测试和镜像构建。一个子目录失败不影响别的作业。
 
 推 `<id>/v<版本>` 或 `base/v<版本>` 的 tag 触发发布：构建多架构镜像、推送、把摘要写回 compose（底座是 `base/DIGEST`）。

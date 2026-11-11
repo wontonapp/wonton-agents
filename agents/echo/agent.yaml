@@ -1,0 +1,38 @@
+id: ai.echo
+version: 0.1.0
+title: { zh: Echo, en: Echo }
+description:
+  zh: 最小样例 Agent，收到什么回什么；当「新增一家」的底稿用
+  en: Minimal sample agent that echoes prompts back; the starting point for adding an agent
+about:
+  zh: |
+    Echo 是本仓库的最小样例：底座加一份 agent.toml 就能跑，收到什么回什么。
+
+    把它当「新增一家」的底稿：复制本目录，改 agent.yaml、agent.toml、图标和 NOTICE，跑
+    python3 gen/gen.py 重新生成 compose，再接上真实 CLI 的启动命令、网关钩子和登录。
+
+    接上模型网关时走网关（样例钩子只把模型名写进日志）；也可以用样例登录（任意一行 key）。
+    它不连任何上游服务，只用来演示和联调。
+  en: |
+    Echo is this repo's minimal sample: the base image plus one agent.toml is enough, and it
+    echoes every prompt back.
+
+    Treat it as the starting point for adding an agent: copy this directory, change agent.yaml,
+    agent.toml, the icon and NOTICE, regenerate the compose with python3 gen/gen.py, then wire
+    up a real CLI's ACP command, gateway hook and logins.
+
+    With a model gateway it goes through the gateway (the sample hook just logs the model name);
+    the sample login accepts any key. It talks to no upstream service; for demos and testing only.
+release_notes:
+  zh: 首个版本。
+  en: First version.
+license: Apache-2.0
+notices: [NOTICE]
+homepage: https://github.com/wontonapp/wonton-agents
+tags: { zh: [AI, 工具], en: [AI, Tools] }
+acp_mode: plan
+memory: 512M
+login:
+  - id: sample
+    title: { zh: 样例账号（读一行 key）, en: Sample account (paste one key) }
+webui: true

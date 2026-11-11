@@ -1,0 +1,100 @@
+# 本文件由 gen/gen.py 从 agent.yaml 和 template/ 生成：改 agent.yaml 后重新生成，不要手改。
+# bridge 说 ACP、不认识任何一家 Agent；两个服务只共享 ACP socket 所在的 run/ 子目录，
+# bridge 的 crypto store 和 Matrix 令牌不给 agent，agent 的 HOME 和工作区不给 bridge。
+services:
+  agent:
+    image: ghcr.io/wontonapp/wonton-agents/@@NAME@@:@@VERSION@@
+    # 底座镜像固定用 65532，入口不再降权；bridge 挂同一个 run/ 目录，两个服务的属主必须相同。
+    user: "65532:65532"
+    restart: unless-stopped
+    environment:
+      HOME: /data/agent/home
+      # 底座每次启动按有没有值选路：三个 WONTON_MODEL_* 都有值时调网关钩子，任一为空就清掉
+      # 网关配置、用 Agent 自己的登录态。这里不写代理变量，写了空值会把核心注入的顶掉。
+      WONTON_MODEL_BASE_URL: ${WONTON_MODEL_BASE_URL:-}
+      WONTON_MODEL_API_KEY: ${WONTON_MODEL_API_KEY:-}
+      WONTON_MODEL_DEFAULT: ${WONTON_MODEL_DEFAULT:-}
+      WONTON_ACP_SOCKET: /data/run/acp.sock
+      WONTON_AGENT_WORKSPACE: /workspace
+      # 容器里没有浏览器：登录命令只打链接，用户自己开浏览器拿 code。
+      NO_BROWSER: "1"
+      @@AGENT_ENV@@
+    volumes:
+      - ${WONTON_BOT_DATA:?需要 Bot 数据目录}/agent:/data/agent
+      - ${WONTON_BOT_DATA}/run:/data/run
+      - ${WONTON_BOT_DATA}/workspace:/workspace
+    healthcheck:
+      # socket 是就绪的标志（首启下载 CLI 可能要几分钟）：有它才算能接连接。
+      test: ["CMD", "test", "-S", "/data/run/acp.sock"]
+      interval: 30s
+      timeout: 5s
+      start_period: 300s
+      start_interval: 2s
+
+  bridge:
+    # 桥镜像的版本和摘要只写这一处；桥升级改这里，再重新生成所有子目录。
+    image: ghcr.io/wontonapp/wonton-acp-bridge:0.1.0-beta.2@sha256:5b34b9dadd5548182034b972dfffce64ec62b31c26a65a97bf3fb7f5a318cb80
+    user: "65532:65532"
+    restart: unless-stopped
+    depends_on:
+      agent:
+        condition: service_started
+    environment:
+      HOME: /data/bridge
+      WONTON_BOT_DATA: /data
+      WONTON_BRIDGE_DATA: /data/bridge
+      WONTON_ACP_SOCKET: /data/run/acp.sock
+      WONTON_AGENT_WORKSPACE: /workspace
+      WONTON_MATRIX_HOMESERVER: ${WONTON_MATRIX_HOMESERVER:?需要 Matrix 地址}
+      WONTON_MATRIX_ACCESS_TOKEN: ${WONTON_MATRIX_ACCESS_TOKEN:?需要 Bot 的 Matrix 访问令牌}
+      # 名单变量 0.9 起改叫 WONTON_MATRIX_ALLOWED_USERS；两个名字都传，新旧桥都能读。
+      WONTON_MATRIX_ALLOWED_USERS: ${WONTON_MATRIX_ALLOWED_USERS:-${WONTON_MATRIX_OWNER:?需要主人的 Matrix 用户 ID}}
+      WONTON_MATRIX_OWNER: ${WONTON_MATRIX_OWNER:-${WONTON_MATRIX_ALLOWED_USERS:?需要主人的 Matrix 用户 ID}}
+      WONTON_MATRIX_HOME_ROOM: ${WONTON_MATRIX_HOME_ROOM:?需要主人与 Bot 的主房间}
+      WONTON_MCP_URL: ${WONTON_MCP_URL:?需要 MCP 总线地址}
+      # 主会话的 ACP 模式；话题会话要更严的「改前先问」模式时，在 agent.yaml 配 acp_topic_mode。
+      WONTON_ACP_MODE: @@ACP_MODE@@
+      @@ACP_TOPIC_MODE@@
+    volumes:
+      - ${WONTON_BOT_DATA}/bridge:/data/bridge
+      - ${WONTON_BOT_DATA}/run:/data/run
+    healthcheck:
+      test: ["CMD", "test", "-S", "/data/run/acp.sock"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      start_interval: 2s
+  @@WEB_SERVICE@@
+x-wonton:
+  spec: "0.6"
+  id: @@ID@@
+  version: @@VERSION@@
+  kind: agent
+  @@TITLE@@
+  @@DESCRIPTION@@
+  icon: icon.svg
+  @@NOTICES@@
+  author: { name: Wonton plugin authors }
+  @@HOMEPAGE@@
+  @@LICENSE@@
+  @@TAGS@@
+  @@ABOUT@@
+  @@RELEASE_NOTES@@
+  @@WEBUI@@
+  agent:
+    protocol: acp
+    @@LOGIN@@
+  bot:
+    display_name: @@DISPLAY_NAME@@
+  bots:
+    services: [agent, bridge]
+  permissions:
+    - matrix.bot
+    - tools
+    - models
+    # 登录和官方模型请求都要出网；底座首启下载闭源 CLI 也走这里。
+    - network.egress
+    @@EXTRA_PERMISSIONS@@
+  requirements:
+    arch: [amd64, arm64]
+    memory: @@MEMORY@@
