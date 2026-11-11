@@ -3,7 +3,7 @@
 #
 # 先把清单里的 version 改成新版本、写好 release_notes，提交，再执行它。脚本按顺序：
 #   1. 检查：工作区是干净的，tag <id>/v<版本> 还没有，插件包合格。
-#   2. images/<名字>/ 下的每个 Dockerfile：按清单 requirements.arch 构建镜像（没写就是 linux/amd64 和 linux/arm64），
+#   2. image/ 下的 Dockerfile：按清单 requirements.arch 构建镜像（没写就是 linux/amd64 和 linux/arm64），
 #      推到 compose 里写的那个镜像仓库，把 compose 里引用它的地方改成这个版本的摘要，提交。
 #   3. 再检查一遍（--official 时按官方索引的要求）。
 #   4. 打 tag <id>/v<版本>，推送当前分支和 tag（远端 origin）。
@@ -84,7 +84,7 @@ open(path, "w", encoding="utf-8").write("\n".join(text))
 PY
 }
 
-# compose 里引用 images/<名字>/ 的镜像仓库，如 ghcr.io/me/wonton-agents/hello-web。
+# compose 里引用 image/ 的镜像仓库，如 ghcr.io/me/wonton-agents/hello-web；镜像名取插件目录名。
 image_repo() {
   python3 - "$plugin/docker-compose.yml" "$1" <<'PY'
 import re, sys
@@ -130,10 +130,8 @@ PY
 }
 
 platforms="$(build_platforms)"
-built=""
-for dockerfile in "$plugin"/images/*/Dockerfile; do
-  [[ -e "$dockerfile" ]] || continue
-  name="$(basename "$(dirname "$dockerfile")")"
+if [[ -e "$plugin/image/Dockerfile" ]]; then
+  name="$(basename "$plugin")"
   repo="$(image_repo "$name")" || exit 1
   info "构建并推送 $repo:$version（${platforms//,/、}）"
   meta="$(mktemp)"
@@ -142,17 +140,13 @@ for dockerfile in "$plugin"/images/*/Dockerfile; do
   docker buildx build --platform "$platforms" --push --metadata-file "$meta" \
     --label "org.opencontainers.image.source=$source" \
     --annotation "index:org.opencontainers.image.source=$source" \
-    -t "$repo:$version" "$plugin/images/$name" || die "构建或推送 $repo 失败"
+    -t "$repo:$version" "$plugin/image" || die "构建或推送 $repo 失败"
   digest="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["containerimage.digest"])' "$meta")"
   rm -f "$meta"
   pin_image "$name" "$version@$digest" || die "compose 里没有引用 $repo 的 image"
-  built="$built $name"
-done
-if [[ -n "$built" ]]; then
   git add "$plugin/docker-compose.yml"
-  built="${built# }"
   # 重跑同一版本时摘要没变，没有可提交的东西。
-  git diff --cached --quiet || git commit -q -m "chore(release): $tag 的镜像按摘要固定（${built// /、}）"
+  git diff --cached --quiet || git commit -q -m "chore(release): $tag 的镜像按摘要固定"
 fi
 
 info "按发布的要求再检查一遍"

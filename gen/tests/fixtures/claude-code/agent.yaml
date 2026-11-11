@@ -1,0 +1,48 @@
+id: ai.claude-code
+version: 0.1.1
+title: { zh: Claude Code, en: Claude Code }
+description:
+  zh: Anthropic 的 Claude Code 编程 Agent，在聊天里按你的确认动手
+  en: Anthropic's Claude Code coding agent that acts in chat, asking before it acts
+about:
+  zh: |
+    Claude Code 以 Bot 的身份住进聊天，用它自己的 Anthropic 登录或 key。它住在自己的容器里，
+    改文件、跑命令之前经确认卡片问你；Wonton 插件的工具也从聊天里调。
+
+    接上模型网关（要提供 Anthropic Messages 接口）时默认走网关，不用账号。没接网关时，在插件页的登录
+    网页（默认 Bot）或聊天里发 /wonton login（这个聊天对应的 Bot）登录：用 Claude 订阅或 Anthropic
+    Console 登录（粘一次登录码），也可以贴一个自己的 Anthropic API key。订阅需要 Pro、Max、Ultra、
+    Team 或 Enterprise；免费版不含 Claude Code。
+  en: |
+    Claude Code lives in the chat as a bot, signed in with your own Anthropic account or key. It
+    works in its own container and asks through confirmation cards before editing files or running
+    commands; Wonton plugin tools are called from the chat too.
+
+    With a model gateway that speaks Anthropic Messages it goes through the gateway by default,
+    with no account. Without one, sign in from the login page on the plugin screen (default bot)
+    or send /wonton login in the chat (this chat's bot): with a Claude subscription or Anthropic
+    Console (paste one login code), or paste your own Anthropic API key.
+    Subscriptions need Pro, Max, Ultra, Team or Enterprise; the free plan has no Claude Code.
+release_notes:
+  zh: "适配新版核心的名单变量名，旧核心照常能装，用起来没有变化。"
+  en: "Adapts to the new core's allow-list variable name; still installs on older cores, nothing changes in use."
+license: Apache-2.0
+notices: [NOTICE, image/LICENSE.claude-agent-acp, image/LICENSE.claude-code]
+homepage: https://github.com/agentclientprotocol/claude-agent-acp
+tags: { zh: [AI, 开发], en: [AI, Development] }
+acp_mode: default
+memory: 4G
+env:
+  WONTON_MODEL_ANTHROPIC_BASE_URL: ${WONTON_MODEL_ANTHROPIC_BASE_URL:-}
+  ENABLE_TOOL_SEARCH: "false"
+  DISABLE_AUTOUPDATER: "1"
+  DISABLE_TELEMETRY: "1"
+  DISABLE_ERROR_REPORTING: "1"
+webui: true
+login:
+  - id: claudeai
+    title: { zh: Claude 订阅, en: Claude subscription }
+  - id: console
+    title: { zh: Anthropic Console, en: Anthropic Console }
+  - id: api-key
+    title: { zh: Anthropic API key, en: Anthropic API key }

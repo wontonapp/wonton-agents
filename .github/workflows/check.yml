@@ -78,17 +78,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: 生成结果是最新的
-        if: hashFiles('gen/gen.py') != ''
         run: python3 gen/gen.py --check
       - name: ShellCheck
         run: shellcheck agents/${{ matrix.agent }}/*.sh scripts/*.sh
-      # 官方要求（镜像按摘要固定、健康检查、标签、许可证、作者、声明）里，自家镜像的摘要要等发布流程推完镜像才写回
-      # compose，新的一家在第一次发布前满足不了；官方要求同时挡住“摘要没更新”的回归。
+      # PR 上跑非官方：官方要求里自家镜像的摘要要等发布流程推完镜像才写回 compose，新的一家在第一次发布前
+      # 满足不了；官方要求（摘要、健康检查、标签、许可证、作者、声明）由发布流程发版前的 plugin check --official
+      # 把关，已发布一家的摘要回归由它挡住。
       - name: 插件包检查
         env:
           WONTON_CORE_IMAGE: ${{ inputs.core-image }}
           WONTON_PLUGIN: agents/${{ matrix.agent }}
-        run: scripts/check.sh --official
+        run: scripts/check.sh
       - name: 构建 Agent 镜像（不推送）
         if: hashFiles(format('agents/{0}/image/Dockerfile', matrix.agent)) != ''
         run: docker build -t "wonton-agent-${AGENT}:ci" -f "agents/${AGENT}/image/Dockerfile" "agents/${AGENT}/image"
