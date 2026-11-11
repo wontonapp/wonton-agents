@@ -43,8 +43,27 @@ docker build -t ghcr.io/wontonapp/wonton-agent-base:dev base
 | `smoke-probes.sh` | 冒烟探针：`web_assert`、`identity_check`、`MCP_TOOL`/`mcp_assert`、`data_write`/`data_check` |
 | `docker-compose.yml` | 用 `gen/` 生成后一起提交：`python3 gen/gen.py agents/<id>`（生成器用 PyYAML 解析 agent.yaml，MIT 许可证） |
 
-还要实测并在 README 里写明：最严格的模式叫什么、只放行 Wonton MCP 的配置键、内存峰值。这家的差异只放在这个目录里，
-桥和底座不写特例。
+还要实测并在 README 里写明：最严格的模式叫什么、只放行 Wonton MCP 的配置键、内存峰值、越界操作怎么触发确认卡片
+（写法见下面「越界操作怎么触发确认卡片」）。这家的差异只放在这个目录里，桥和底座不写特例。
+
+### 越界操作怎么触发确认卡片
+
+Agent 越界动手前的确认卡是 CLI 自己要的：它经 ACP 的 `session/request_permission` 问桥，桥转成核心的
+权限确认卡——桥给每个选项编一个 `choice_id`，回答时映射回 ACP 的 optionId——主人答完再转回给 Agent。
+（Wonton MCP 工具调用出的卡是核心按自己的工具策略出的，不在这节范围内。）
+各家 CLI 什么时候发这个请求差别很大：有的动手前就问，有的先靠自己的沙箱挡、被拒后要模型带着参数重试才升级。
+接入新的一家时照实写进这家的 README，并更新下表：
+
+| 家 | 越界操作怎么触发确认卡片 |
+| --- | --- |
+| [claude-code](agents/claude-code/README.md) | `default` 模式下改文件、跑命令都在执行前出卡，同意才动手 |
+| [codex](agents/codex/README.md) | 容器即沙箱（Codex 跑 `danger-full-access`，没有可升级的沙箱）：内置启发式判危的命令、托管规则枚举的写命令、Wonton MCP 工具调用出卡；`apply_patch` 改文件不出卡，越界写由容器边界兜底 |
+| [dsh](agents/dsh/README.md) | 不主动出卡：工作区外的操作被沙箱拒绝，工具结果里带 `[sandbox: escalation available …]` 提示，模型按提示带 `sandbox_permissions` + `justification` 重试同一命令才出卡；拒绝则不执行 |
+| [kimi-code](agents/kimi-code/README.md) | `default` 模式下动文件、跑命令出权限卡（`approve_once`/`approve_always`/`reject`）；`plan` 模式不执行任何工具 |
+| [omp](agents/omp/README.md) | `plan` 档跑命令（exec 档）一律出卡，改工作区先出计划；Wonton MCP 工具（write 档）会话内放行，只出核心自己的工具卡 |
+| [opencode](agents/opencode/README.md) | 网关钩子把 `edit`、`shell` 显式写成 `ask`：`plan`、`build` 两档下改文件、跑命令都出卡 |
+| [qwen-code](agents/qwen-code/README.md) | 未核实（README 的实测记录还没填） |
+| [echo](agents/echo/) | 样例 Agent：无沙箱、不出权限卡 |
 
 ## 脚本
 
