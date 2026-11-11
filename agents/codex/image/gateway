@@ -16,13 +16,9 @@ CODEX_HOME = Path(os.environ.get("CODEX_HOME") or Path(os.environ.get("HOME", "/
 # 兜底指令，见 NOTICE），不改写。
 PROMPT_MD = Path("/usr/local/share/wonton-agent/prompt.md")
 
-# Codex 0.137 起文件沙箱默认走 bubblewrap，在容器里起不了 userns，批准后的
-# apply_patch 一律失败；退回 Landlock（内核 LSM，容器内可用），沙箱才落得了地。
-# 0.166 里另一项 use_linux_sandbox_bwrap 已移除（缺省就是关），不写。
-FEATURES = """\
-[features]
-use_legacy_landlock = true
-"""
+# Codex 0.166 的受限沙箱必须走 bubblewrap；use_legacy_landlock 在带受限文件系统
+# 策略时直接拒绝启动沙箱（linux_run_main.rs 的显式检查），写了更糟。容器起不了
+# userns 时受限模式跑不了命令，见 README 的已知限制；FEATURES 不再写任何开关。
 
 
 def fail(message: str) -> None:
@@ -54,7 +50,9 @@ def write_catalog(path: Path, model: str) -> None:
         "apply_patch_tool_type": "freeform",
         "supported_reasoning_levels": [],
         "shell_type": "default",
-        "visibility": "none",
+        # 网关模型要在 codex 的 model/list 里出现（适配器建会话时要从这里挑模型），
+        # visibility 得是 list；none 会把模型藏掉，session/new 报 "did not return any models"。
+        "visibility": "list",
         "supported_in_api": True,
         "priority": 99,
         "base_instructions": PROMPT_MD.read_text(encoding="utf-8"),
@@ -102,7 +100,7 @@ wire_api = "responses"
         catalog.unlink(missing_ok=True)
         config = "# 由网关钩子管理，手改会被覆盖。\n\n"
 
-    (CODEX_HOME / "config.toml").write_text(config + FEATURES, encoding="utf-8")
+    (CODEX_HOME / "config.toml").write_text(config, encoding="utf-8")
 
 
 if __name__ == "__main__":
