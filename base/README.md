@@ -184,6 +184,13 @@ ANTHROPIC_AUTH_TOKEN = "WONTON_MODEL_API_KEY"   # 子进程拿到 WONTON_MODEL_A
 ANTHROPIC_BASE_URL = "WONTON_MODEL_BASE_URL"
 ```
 
+## 登录网页的转发
+
+compose 模板里的 web 服务用 `/usr/local/lib/wonton-agent/web-proxy`（本目录的 `web-proxy`
+入口）把请求转给默认 Bot 的 agent 容器：webui 不能指向 Bot 服务（旧核心仍按这条判），而登录
+页在 agent 容器里。它只搬运字节，上游默认 `agent-default:8080`（可用 `WEB_UPSTREAM_HOST`、
+`WEB_UPSTREAM_PORT` 改），监听 `WEB_PORT`（默认 8080）。
+
 ## 子镜像怎么写
 
 ```dockerfile

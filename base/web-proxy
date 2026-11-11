@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+"""web 服务的入口：模板的 entrypoint 指到这个文件，逻辑在 wonton_agent.web_proxy。"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from wonton_agent.web_proxy import main  # noqa: E402
+
+main()
