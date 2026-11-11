@@ -77,8 +77,11 @@ command = ["/data/agent/tools/kimi/2.4.0/bin/kimi-acp"]   # 跟包里 package.js
 strip_ansi = true                  # 缺省 true
 ```
 
-npm 来源把包的 tgz 解到版本目录，再跑 `npm install --prefix <版本目录> --ignore-scripts`
-装依赖：不执行包里的安装脚本，闭源 CLI 的安装代码不碰容器其余部分。CLI 本体跟着包走，
+npm 来源把包的 tgz 解到版本目录，摘掉 `package.json` 的 `devDependencies` 再跑
+`npm install --prefix <版本目录> --ignore-scripts`
+装依赖：不执行包里的安装脚本，闭源 CLI 的安装代码不碰容器其余部分。摘掉
+`devDependencies` 是因为那是 CLI 仓库的构建期依赖，官方包常在这里引用未发布的内部包
+（npm 对它们 404），运行时也不需要；只装 `dependencies` 里的运行依赖。CLI 本体跟着包走，
 在包里 package.json 的 `bin` 字段指向的位置——多数 CLI 包是 `<版本目录>/bin/<命令>`，也有
 顶层入口（`<版本目录>/cli.js`）——`[acp] command` 按包的 bin 字段填。npm install 只把包
 声明的依赖装进 `<版本目录>/node_modules/`，不搬 CLI 自己。integrity 只核对顶层包，
