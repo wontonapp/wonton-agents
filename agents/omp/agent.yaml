@@ -1,5 +1,5 @@
 id: ai.omp.agent
-version: 0.1.4
+version: 0.1.5
 title: { zh: omp, en: omp }
 description:
   zh: 会用工具写代码、跑命令的 Agent，在聊天里按你的确认动手
@@ -22,8 +22,13 @@ about:
     cards before running commands; Wonton plugin tools are called from the chat.
     The chat is an encrypted direct message the core creates, and it carries on after a restart.
 release_notes:
-  zh: 改为随 wonton-agents 仓库的公共底座发版；接网关、登录和用法不变。
-  en: Now released from the wonton-agents monorepo on the shared base; gateway, sign-in and usage are unchanged.
+  zh: >-
+    首个随 wonton-agents 仓库发布的版本：桥和底座换成仓库公共的 base 镜像，omp 的安装、ACP 启动、
+    网关钩子和登录改由 agent.toml 描述。从旧仓库升级时核心会提示来源变了，数据和 Bot 都保留，用法不变。
+  en: >-
+    First release from the wonton-agents monorepo: the bridge and base are now the repo-wide base
+    image, and omp's install, ACP startup, gateway hooks and sign-in are described in agent.toml.
+    Upgrading from the old repo prompts a source change; data and Bots are kept, usage is unchanged.
 license: MIT
 notices: [NOTICE, image/LICENSE.omp]
 homepage: https://omp.sh

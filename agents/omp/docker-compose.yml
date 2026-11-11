@@ -3,7 +3,7 @@
 # bridge 的 crypto store 和 Matrix 令牌不给 agent，agent 的 HOME 和工作区不给 bridge。
 services:
   agent:
-    image: ghcr.io/wontonapp/wonton-agents/omp:0.1.4
+    image: ghcr.io/wontonapp/wonton-agents/omp:0.1.5
     # 底座镜像固定用 65532，入口不再降权；bridge 挂同一个 run/ 目录，两个服务的属主必须相同。
     user: "65532:65532"
     restart: unless-stopped
@@ -65,7 +65,7 @@ services:
 x-wonton:
   spec: "0.6"
   id: ai.omp.agent
-  version: 0.1.4
+  version: 0.1.5
   kind: agent
   title: { zh: omp, en: omp }
   description:
@@ -95,8 +95,8 @@ x-wonton:
       cards before running commands; Wonton plugin tools are called from the chat.
       The chat is an encrypted direct message the core creates, and it carries on after a restart.
   release_notes:
-    zh: 改为随 wonton-agents 仓库的公共底座发版；接网关、登录和用法不变。
-    en: Now released from the wonton-agents monorepo on the shared base; gateway, sign-in and usage are unchanged.
+    zh: 首个随 wonton-agents 仓库发布的版本：桥和底座换成仓库公共的 base 镜像，omp 的安装、ACP 启动、 网关钩子和登录改由 agent.toml 描述。从旧仓库升级时核心会提示来源变了，数据和 Bot 都保留，用法不变。
+    en: "First release from the wonton-agents monorepo: the bridge and base are now the repo-wide base image, and omp's install, ACP startup, gateway hooks and sign-in are described in agent.toml. Upgrading from the old repo prompts a source change; data and Bots are kept, usage is unchanged."
   agent:
     protocol: acp
     login:
