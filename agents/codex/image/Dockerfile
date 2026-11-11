@@ -32,6 +32,8 @@ RUN npm install --prefix /opt/codex-acp --ignore-scripts --no-audit --no-fund --
 USER 65532:65532
 
 COPY agent.toml /etc/wonton-agent/
+# 容器即沙箱的托管约束（模式限制 + 写命令确认规则），见文件头注释和 README。
+COPY requirements.toml /etc/codex/requirements.toml
 # 底座 0.1.0 还没有 web 服务的转发器（base 的修复 PR 合了以后这行和文件删掉），
 # qwen-code 同款：自足的 TCP 字节搬运，SSE 不缓冲。
 COPY --chmod=0755 gateway web-proxy /usr/local/lib/wonton-agent/

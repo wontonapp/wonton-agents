@@ -16,9 +16,15 @@ CODEX_HOME = Path(os.environ.get("CODEX_HOME") or Path(os.environ.get("HOME", "/
 # 兜底指令，见 NOTICE），不改写。
 PROMPT_MD = Path("/usr/local/share/wonton-agent/prompt.md")
 
-# Codex 0.166 的受限沙箱必须走 bubblewrap；use_legacy_landlock 在带受限文件系统
-# 策略时直接拒绝启动沙箱（linux_run_main.rs 的显式检查），写了更糟。容器起不了
-# userns 时受限模式跑不了命令，见 README 的已知限制；FEATURES 不再写任何开关。
+# 容器即沙箱（D 方案，见 README）：Codex 自带沙箱在容器里起不来，模型和命令的
+# 边界就是容器本身。approval_policy 用 on-request——命令不问就跑，危险命令
+# （Codex 内置启发式）和 execpolicy 规则命中的写命令出卡片；沙箱声明成
+# danger-full-access，是官方对「已经在容器里跑」的建议写法。
+POSTURE = """\
+approval_policy = "on-request"
+sandbox_mode = "danger-full-access"
+
+"""
 
 
 def fail(message: str) -> None:
@@ -81,7 +87,7 @@ def main() -> None:
             fail(f"写不下模型目录 {catalog}：{error}")
         config = f"""\
 # 由网关钩子管理，手改会被覆盖：模型请求经 Wonton 模型网关。
-model_provider = "wonton"
+{POSTURE}model_provider = "wonton"
 model = {toml_string(model)}
 model_catalog_json = {toml_string(str(catalog))}
 
@@ -98,7 +104,7 @@ wire_api = "responses"
         # 网关配置，也清掉上次留下的模型目录；Codex 走内置 openai provider 和自己的
         # 登录态，没有登录态时 prompt 返回 auth_required，桥转成“要先登录”的提示。
         catalog.unlink(missing_ok=True)
-        config = "# 由网关钩子管理，手改会被覆盖。\n\n"
+        config = f"# 由网关钩子管理，手改会被覆盖。\n\n{POSTURE}"
 
     (CODEX_HOME / "config.toml").write_text(config, encoding="utf-8")
 
