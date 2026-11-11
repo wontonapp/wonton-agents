@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "deny": ["ToolSearch"],
+    "disableBypassPermissionsMode": "disable"
+  },
+  "disableAutoMode": "disable"
+}

@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+"""登录状态（订阅 / Console）：退出码 0 = 已登录。用 CLI 自己的 `auth status`，只看它报的 loggedIn 和
+登录方式；apiKeyHelper 存着 API key 时 CLI 会把 loggedIn 报成 false，正好区分开两种登录。"""
+import json
+import subprocess
+import sys
+
+ADAPTER = "/data/agent/tools/claude-agent-acp/0.101.0/dist/index.js"
+
+
+def main() -> None:
+    try:
+        result = subprocess.run(["node", ADAPTER, "--cli", "auth", "status"],
+                                capture_output=True, text=True, timeout=30)
+        status = json.loads(result.stdout)
+    except (OSError, subprocess.SubprocessError, ValueError) as error:
+        print(f"查不到登录状态：{error}")
+        sys.exit(2)
+    method = status.get("authMethod")
+    # apiKeyHelper 存着 key 时 loggedIn 也是 true、authMethod 是 api_key_helper；那不是订阅登录。
+    if status.get("loggedIn") is True and method not in (None, "none", "api_key_helper", "api_key"):
+        print(f"已登录（{method}）")
+        return
+    print("没登录" if not status.get("loggedIn") else f"登录的是 {method}，不是订阅登录")
+    sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

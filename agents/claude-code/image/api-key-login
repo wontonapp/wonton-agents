@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+"""API key 登录：读一行 key，写进 ~/.claude/api-key（0600），settings 的 apiKeyHelper 指向读它的脚本。
+密钥不进日志、不进 settings；网关没接、也没订阅登录时用它。"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, "/usr/local/lib/wonton-agent")
+import agent_settings  # noqa: E402
+
+KEY_FILE = Path.home() / ".claude" / "api-key"
+
+
+def main() -> None:
+    key = "".join(sys.stdin.readline().split())
+    if not key:
+        sys.exit("没读到 key")
+    KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    KEY_FILE.write_text(key + "\n")
+    KEY_FILE.chmod(0o600)
+    data = agent_settings.load()
+    if data.get("apiKeyHelper") != agent_settings.API_KEY_HELPER:
+        data["apiKeyHelper"] = agent_settings.API_KEY_HELPER
+        agent_settings.save(data)
+    if not key.startswith("sk-ant-"):
+        print("key 不是 sk-ant- 开头，还是存下了，不对就重来一次")
+    print(f"API key 已保存（{len(key)} 字符），重启后生效")
+
+
+if __name__ == "__main__":
+    main()
