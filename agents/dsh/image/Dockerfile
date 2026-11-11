@@ -1,6 +1,6 @@
 # Agent 层：底座镜像（wonton-agent 入口）+ 官方 dsh CLI（@deepseek-ai/dsh，MIT，可再分发，打进镜像）。
 # 底座按摘要固定，防镜像漂移；底座升级改这一行重新构建。
-FROM ghcr.io/wontonapp/wonton-agent-base:0.1.0@sha256:5cba94459910395888a969190420492bd58f88a2928a2f8f9a7deb8b849519e9
+FROM ghcr.io/wontonapp/wonton-agent-base:0.1.1@sha256:1f66748aa0f30bae92496fabd35bebc35d9fb965762096b876a4b45c1ad2cab2
 
 # 官方 npm registry 的 tgz，按 npm dist.integrity 校验通过才安装；依赖由 npm 安装时核对。
 ARG DSH_VERSION=0.2.2-rc.1
