@@ -1,0 +1,45 @@
+id: ai.codex
+version: 0.1.0
+title: { zh: Codex, en: Codex }
+description:
+  zh: OpenAI 的 Codex 编程 Agent，在聊天里按你的确认动手
+  en: OpenAI's Codex coding agent that acts in chat, asking before it acts
+about:
+  zh: |
+    OpenAI Codex 以 Bot 的身份住进聊天：模型网关接好时默认走网关，不用账号，也不用填任何 key。
+    它住在自己的容器里，用只读沙箱工作，改文件、跑会出沙箱的命令之前经确认卡片问你；
+    Wonton 插件的工具也从聊天里调。没接网关时，在聊天里发 /wonton login：用设备码登录
+    ChatGPT 订阅，或贴一个自己的 OpenAI API key。Codex CLI 和 ACP 适配器在第一次启动时
+    从官方 npm 源下载，不打进镜像。
+  en: |
+    OpenAI Codex lives in the chat as a bot: when the model gateway is connected it goes
+    through the gateway by default, with no account and no key to fill in. It works in its
+    own container under a read-only sandbox and asks through confirmation cards before
+    editing files or running commands outside it; Wonton plugin tools are called from the
+    chat too. Without the gateway, send /wonton login in the chat: sign in to a ChatGPT
+    subscription with a device code, or paste your own OpenAI API key. The Codex CLI and
+    its ACP adapter are downloaded from the official npm registry on first start, not
+    baked into the image.
+release_notes:
+  zh: 首个版本。
+  en: First version.
+license: Apache-2.0
+notices: [NOTICE]
+homepage: https://github.com/openai/codex
+tags: { zh: [AI, 开发], en: [AI, Development] }
+# Codex 最严格可用的模式，实测只有 read-only：只读工作区，改文件和出网都先经确认卡片问
+# 主人。它自带的沙箱在普通 Docker 容器里建不了命名空间，更宽的模式不可用。
+acp_mode: read-only
+# codex-acp 唯一的“改前先问”模式就是 read-only：话题里也逐次确认，不设时桥仍用上面的
+# 模式，但会在每个话题里误报没有这种模式。
+acp_topic_mode: read-only
+memory: 1G
+login:
+  - id: chatgpt
+    title: { zh: ChatGPT 账号, en: ChatGPT account }
+  - id: api-key
+    title: { zh: OpenAI API key, en: OpenAI API key }
+env:
+  # 会话和 MCP 连接的日志进容器日志，出问题时能对着它排查。
+  RUST_LOG: info
+webui: true

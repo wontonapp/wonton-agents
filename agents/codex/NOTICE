@@ -1,0 +1,51 @@
+# Codex 插件声明
+
+## 图标
+
+`icon.svg` 是按插件规范手绘的线条图标（终端提示符），原创，随插件包以本仓库的 Apache-2.0
+许可证分发。Codex 和 OpenAI 是 OpenAI 的商标；本插件不是 OpenAI 或 Zed 的官方出品，也不表示
+得到它们的认可或背书。
+
+## 上游程序
+
+Codex CLI 和它的 ACP 适配器不打进镜像：首次启动按版本和 SHA-512（npm 的 dist.integrity）
+从官方 registry 下载到数据卷，摘要核对通过才落盘。
+
+- `codex-acp` 2.6.0（`@agentclientprotocol/codex-acp`）：OpenAI、JetBrains 和 Zed 的 ACP
+  适配器，Apache-2.0。来源 <https://registry.npmjs.org/@agentclientprotocol/codex-acp>，
+  仓库 <https://github.com/agentclientprotocol/codex-acp>。适配器声明依赖
+  `@openai/codex` ^0.166.0 并自带按平台拆分的二进制包；包里没有 npm-shrinkwrap.json，
+  依赖按 semver 解析，版本由注册表机器人跟着上游提 PR。
+- Codex CLI 0.166.0（`@openai/codex`）：官方账号的设备码登录（`codex login --device-auth`）
+  和 API key 登录用的是它，Apache-2.0。来源 <https://registry.npmjs.org/@openai/codex>，
+  仓库 <https://github.com/openai/codex>。
+
+镜像只加 `python3`（PSF-2.0）和 Node.js（nodejs.org 官方二进制，MIT 许可证，随底座镜像，
+见底座的 NOTICE）：适配器是 JS 程序，Codex CLI 由它的 npm 包按平台分发，都不修改上游程序。
+两个上游程序的许可证全文见各自仓库（Apache-2.0）。
+
+`prompt.md` 取自 Codex `rust-v0.166.0` 的 `codex-rs/models-manager/prompt.md`（Apache-2.0）：
+Codex 对目录外的模型要求完整的模型元数据，网关钩子把它写进 `model_catalog_json` 的
+`base_instructions`（Codex 自己对未知模型用的兜底指令），否则目录解析直接报错。
+
+## 模型网关
+
+模型网关接好时，网关钩子把网关地址写进 `$CODEX_HOME/config.toml`（`model_providers` +
+`model_catalog_json`），API key 只以 `env_key` 引用变量名，不落盘。已有 ChatGPT 登录态时
+模型请求直接发给 OpenAI，不经过模型网关，也不把订阅请求送进网关。
+
+## 官方账号登录
+
+登录在 Codex 自己的程序里完成（`codex login --device-auth` 设备码，或 `codex login
+--with-api-key` 贴 key），链接和设备码由桥发进聊天，也可以在登录网页里操作；登录态
+（`$CODEX_HOME/auth.json`）留在插件数据目录里。条款与风险的讨论见 Wonton 公开文档的插件规范。
+
+## Wonton 的工具
+
+Codex 通过会话里的 MCP 服务器配置调 Wonton 的插件工具（`mcpServers`，HTTP），不经 config.toml：
+适配器会把配置文件里已定义的同名服务器跳过，网关钩子因此不写任何 `mcp_servers` 段。
+Wonton 工具的确认卡片由核心出；Codex 自己的沙箱用在 read-only 模式，改文件和出网先经确认。
+
+## 许可证
+
+Apache-2.0（见仓库根的 LICENSE）。

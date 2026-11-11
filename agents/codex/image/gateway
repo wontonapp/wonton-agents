@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+"""模型网关钩子：把网关写进 Codex 的 config.toml（apply），网关不在时清掉（clear）。
+
+底座带全部环境变量调它：三个 WONTON_MODEL_* 都有值时 apply，任一为空时 clear。
+config.toml 每次整份重写：网关后来接入或被卸掉时，重启容器就切换，不会留着指向旧地址的配置。
+"""
+
+import json
+import os
+import sys
+from pathlib import Path
+
+CODEX_HOME = Path(os.environ.get("CODEX_HOME") or Path(os.environ.get("HOME", "/data/agent/home")) / ".codex")
+# 镜像里的系统提示：Codex 对目录外的模型要求完整的模型元数据，base_instructions
+# 缺了目录解析直接报错。内容取自镜像里随插件带的 prompt.md（Codex 自己对未知模型的
+# 兜底指令，见 NOTICE），不改写。
+PROMPT_MD = Path("/usr/local/share/wonton-agent/prompt.md")
+
+# 容器即沙箱（D 方案，见 README）：Codex 自带沙箱在容器里起不来，模型和命令的
+# 边界就是容器本身。approval_policy 用 on-request——命令不问就跑，危险命令
+# （Codex 内置启发式）和 execpolicy 规则命中的写命令出卡片；沙箱声明成
+# danger-full-access，是官方对「已经在容器里跑」的建议写法。
+POSTURE = """\
+approval_policy = "on-request"
+sandbox_mode = "danger-full-access"
+
+"""
+
+
+def fail(message: str) -> None:
+    print(f"codex 网关钩子：{message}", file=sys.stderr)
+    sys.exit(1)
+
+
+def toml_string(value: str) -> str:
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def has_own_auth() -> bool:
+    """auth.json 里有 ChatGPT 登录态或用户自己的 API key：模型请求发官方，不经网关。"""
+    try:
+        auth = json.loads((CODEX_HOME / "auth.json").read_text())
+    except (OSError, ValueError):
+        return False
+    return "tokens" in auth or auth.get("OPENAI_API_KEY")
+
+
+def write_catalog(path: Path, model: str) -> None:
+    """网关模型的元数据：字段照 Codex 对未知模型的兜底元数据填（0.166 的
+    models-manager/src/model_info.rs），只差 apply_patch_tool_type——缺了它 Codex
+    不注册 apply_patch，只能拿 shell 改文件；桥的改文件冲突表认 apply_patch 的
+    edit 工具调用，没有它就没有排队卡片。"""
+    entry = {
+        "slug": model,
+        "display_name": model,
+        "apply_patch_tool_type": "freeform",
+        "supported_reasoning_levels": [],
+        "shell_type": "default",
+        # 网关模型要在 codex 的 model/list 里出现（适配器建会话时要从这里挑模型），
+        # visibility 得是 list；none 会把模型藏掉，session/new 报 "did not return any models"。
+        "visibility": "list",
+        "supported_in_api": True,
+        "priority": 99,
+        "base_instructions": PROMPT_MD.read_text(encoding="utf-8"),
+        "support_verbosity": False,
+        "truncation_policy": {"mode": "bytes", "limit": 10000},
+        "experimental_supported_tools": [],
+        "context_window": 272000,
+        "max_context_window": 272000,
+    }
+    path.write_text(json.dumps({"models": [entry]}), encoding="utf-8")
+
+
+def main() -> None:
+    action = sys.argv[1] if len(sys.argv) > 1 else ""
+    if action not in ("apply", "clear"):
+        fail(f"不认识的参数 {action!r}，底座只调 apply 或 clear")
+    CODEX_HOME.mkdir(parents=True, exist_ok=True)
+    catalog = CODEX_HOME / "model-catalog.json"
+
+    if action == "apply" and not has_own_auth():
+        model = os.environ["WONTON_MODEL_DEFAULT"].strip()
+        base_url = os.environ["WONTON_MODEL_BASE_URL"].strip()
+        try:
+            write_catalog(catalog, model)
+        except OSError as error:
+            fail(f"写不下模型目录 {catalog}：{error}")
+        config = f"""\
+# 由网关钩子管理，手改会被覆盖：模型请求经 Wonton 模型网关。
+{POSTURE}model_provider = "wonton"
+model = {toml_string(model)}
+model_catalog_json = {toml_string(str(catalog))}
+
+[model_providers.wonton]
+name = "Wonton"
+base_url = {toml_string(base_url)}
+# 密钥只在环境变量里（底座把 WONTON_MODEL_API_KEY 解析进 ACP 子进程环境），不落盘。
+env_key = "OPENAI_API_KEY"
+wire_api = "responses"
+
+"""
+    else:
+        # 没接网关（clear），或已有官方登录态（apply 但 auth.json 里有登录态）：不写
+        # 网关配置，也清掉上次留下的模型目录；Codex 走内置 openai provider 和自己的
+        # 登录态，没有登录态时 prompt 返回 auth_required，桥转成“要先登录”的提示。
+        catalog.unlink(missing_ok=True)
+        config = f"# 由网关钩子管理，手改会被覆盖。\n\n{POSTURE}"
+
+    (CODEX_HOME / "config.toml").write_text(config, encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()

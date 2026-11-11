@@ -1,0 +1,112 @@
+# 容器即沙箱：Codex 自带沙箱在容器里起不来（bubblewrap 要建 user namespace，
+# Docker 默认 seccomp 禁止，宿主内核又开着 apparmor_restrict_unprivileged_userns），
+# 官方对这种部署的建议就是容器提供隔离、Codex 用 danger-full-access 跑
+# （docs/sandbox.md，见本插件 README）。这份托管约束把模式限制在容器档，
+# 并对改文件的常用命令出确认卡片；危险命令（rm -rf 等）由 Codex 内置启发式兜底。
+default_permissions = "wonton-container"
+
+[allowed_permission_profiles]
+wonton-container = true
+
+[permissions.wonton-container]
+description = "容器即沙箱：容器边界之内全部放开，越权行为由容器挡"
+filesystem = { ":root" = "write" }
+
+[permissions.wonton-container.network]
+enabled = true
+
+[rules]
+[[rules.prefix_rules]]
+pattern = [{ token = "touch" }]
+decision = "prompt"
+justification = "要建文件，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "mkdir" }]
+decision = "prompt"
+justification = "要建目录，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "rm" }]
+decision = "prompt"
+justification = "要删文件，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "rmdir" }]
+decision = "prompt"
+justification = "要删目录，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "mv" }]
+decision = "prompt"
+justification = "要移动文件，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "cp" }]
+decision = "prompt"
+justification = "要复制文件，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "ln" }]
+decision = "prompt"
+justification = "要建链接，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "tee" }]
+decision = "prompt"
+justification = "要写文件，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "chmod" }]
+decision = "prompt"
+justification = "要改权限，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "chown" }]
+decision = "prompt"
+justification = "要改属主，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "truncate" }]
+decision = "prompt"
+justification = "要清空文件，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "dd" }]
+decision = "prompt"
+justification = "要写盘，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "sed" }]
+decision = "prompt"
+justification = "要改文件（sed -i 也会走这里），先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "patch" }]
+decision = "prompt"
+justification = "要打补丁，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "apply_patch" }]
+decision = "prompt"
+justification = "要改文件，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "rsync" }]
+decision = "prompt"
+justification = "要同步文件，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "scp" }]
+decision = "prompt"
+justification = "要传文件，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "wget" }]
+decision = "prompt"
+justification = "要下载文件，先问主人"
+
+[[rules.prefix_rules]]
+pattern = [{ token = "curl" }]
+decision = "prompt"
+justification = "要联网，先问主人"
