@@ -1,0 +1,8 @@
+Kimi Code 插件把 Moonshot AI 的 Kimi Code 命令行程序（npm 包 @moonshot-ai/kimi-code，
+MIT 许可证，https://github.com/MoonshotAI/kimi-code ）接入 Wonton。
+
+程序本身不在插件镜像里分发，插件底座在首次启动时按版本和摘要从 npm 官方源下载，
+许可条款随程序分发（MIT，见 https://github.com/MoonshotAI/kimi-code/blob/main/LICENSE ）。
+
+Moonshot AI、Kimi 和 Kimi Code 是 Moonshot AI 的商标；本插件不是 Moonshot AI 的官方产品，
+上游程序按它自己的条款运行。插件其余部分以本仓库的 Apache-2.0 分发。

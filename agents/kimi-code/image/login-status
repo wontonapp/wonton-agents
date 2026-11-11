@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""[[login]] status：退出码 0 = 已登录，非 0 = 没登录（登录网页的列表显示用）。
+kimi-account 看设备码登录的凭据文件（上游 FileTokenStorage 的位置），
+platform-key 看 config.toml 里的开放平台段（kimi_config.py 托管的标记行）。"""
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, "/usr/local/lib/wonton-agent")
+import kimi_config
+
+method = sys.argv[1] if len(sys.argv) > 1 else ""
+kimi_home = kimi_config.home()
+
+if method == "kimi-account":
+    token = kimi_home / "credentials" / "kimi-code.json"
+    sys.exit(0 if token.is_file() and token.stat().st_size > 0 else 1)
+if method == "platform-key":
+    text = kimi_config.config_path().read_text(encoding="utf-8") if kimi_config.config_path().exists() else ""
+    sys.exit(0 if f"{kimi_config.BEGIN} PLATFORM" in text else 1)
+print(f"未知的登录方式 {method}", file=sys.stderr)
+sys.exit(2)
