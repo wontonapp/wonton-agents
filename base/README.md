@@ -256,8 +256,8 @@ docker run -d --name ab-echo-test -p 127.0.0.1::8080 ab-echo-agent:0.1.0
   登录 socket（lines / line_then_eof / 未知 id / 桥断开收进程 / 成功后入口退出）、
   登录网页（列表状态 / start→events / input / cancel / 串行拒绝 / 非 JSON 拒绝）。
   `python3 -m unittest discover -s base/tests -v`（在仓库根执行）
-- 长度检查：`python3 base/scripts/check-size.py`（每个 `.py` 和入口 ≤ 800 行、每个函数 ≤ 100 行，
-  超了退出 1）。仓库根的检查工作流（长度检查 + 测试 + 镜像构建）和发布流程都先跑它。
+- 长度检查：`python3 base/scripts/check-size.py`（每个 `.py` 和入口超过 800 行代码警告、超过 2000 行失败，
+  不算空行和注释；每个函数 ≤ 100 行；超了退出 1）。仓库根的检查工作流（长度检查 + 测试 + 镜像构建）和发布流程都先跑它。
 - 发布：推 `base/v<VERSION>` 的 tag，发布工作流先跑长度检查和测试，再出
   amd64+arm64 镜像，推 `ghcr.io/wontonapp/wonton-agent-base:<VERSION>`，版本号在本目录 `VERSION`，
   摘要写回 `DIGEST`。
