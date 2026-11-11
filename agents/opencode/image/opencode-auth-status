@@ -1,0 +1,12 @@
+#!/bin/sh
+# 登录状态（[[login]] 的 status）：opencode auth list 的 JSON 里 id=opencode 且有连接才算登录
+# （退出码 0），没有或命令起不来算没登录（非 0）；网页列表按这个显示。$1 是 opencode 二进制路径。
+[ -n "$1" ] || exit 2
+"$1" auth list --format json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    rows = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+sys.exit(0 if any(row.get("id") == "opencode" and row.get("connections") for row in rows) else 1)
+'

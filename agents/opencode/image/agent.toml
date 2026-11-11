@@ -1,0 +1,41 @@
+# OpenCode 的底座配置：官方二进制（MIT）可自由分发，但按仓库规则仍从上游发布版按摘要
+# 首启下载到数据卷，镜像里不打上游程序；版本升级时改版本号和摘要，重装插件即可。
+# URL 用上游自己的发布 CDN（opencode.ai/files，ACP 注册表也列它），和 GitHub release 是同一批
+# 工件、同一组摘要（实测 2.2.7 从 GitHub release 资产下不动、CDN 4.4 MB/s，sha256 一致）。
+[[install]]
+name = "opencode"
+version = "2.2.7"
+source = "url"
+url_amd64 = "https://opencode.ai/files/bin/2.2.7/opencode-linux-x64.tar.gz"
+sha256_amd64 = "89a6cee227b54bc011179c528a5e63176032462b1a5e21723b616801cddc2ca7"
+url_arm64 = "https://opencode.ai/files/bin/2.2.7/opencode-linux-arm64.tar.gz"
+sha256_arm64 = "c1682057f0815cb2abdd6e00305f1146ebaf1c167f0335cdb74ddc80008120e7"
+format = "tgz"
+
+# opencode 读 ~/.config/opencode/skills 下的全局 skill、~/.config/opencode/AGENTS.md 下的全局说明（实测 2.2.7）。
+[skills]
+target = "~/.config/opencode/skills"
+
+[prompt]
+target = "~/.config/opencode/AGENTS.md"
+
+[gateway]
+hook = "/usr/local/lib/wonton-agent/gateway"
+
+# WONTON_MODEL_* 经环境传给 [acp] 子进程（底座子进程继承全部环境），钩子写进 opencode.json 的
+# 只是变量名（providers.wonton.env），密钥不落盘。
+[acp]
+command = ["/data/agent/tools/opencode/2.2.7/opencode", "acp"]
+
+# 登录网页：容器里 0.0.0.0:8080，插件清单声明成 webui（核心网关挡着，只有主人打得开）。
+[web]
+port = 8080
+
+# 官方账号登录：opencode 的密钥输入要真终端（实测 2.2.7 管道上报 requires an interactive terminal），
+# 包装脚本起 pty 跑官方 `opencode auth login opencode --method key`。二进制路径作为参数传，
+# 和 [acp] command 共用 agent.toml 这一处版本。
+[[login]]
+id = "opencode"
+name = "OpenCode 账号（粘贴 API key）"
+command = ["/usr/local/lib/wonton-agent/opencode-login", "/data/agent/tools/opencode/2.2.7/opencode"]
+status = ["/usr/local/lib/wonton-agent/opencode-auth-status"]
