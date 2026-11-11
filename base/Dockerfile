@@ -37,7 +37,8 @@ RUN case "$TARGETARCH" in \
 COPY wonton-agent /usr/local/bin/wonton-agent
 COPY wonton_agent/ /usr/local/lib/wonton-agent/wonton_agent/
 COPY web/ /usr/local/share/wonton-agent/web/
-RUN chmod 0755 /usr/local/bin/wonton-agent
+COPY web-proxy /usr/local/lib/wonton-agent/web-proxy
+RUN chmod 0755 /usr/local/bin/wonton-agent /usr/local/lib/wonton-agent/web-proxy
 
 ENV HOME=/data/agent/home \
     WONTON_ACP_SOCKET=/data/run/acp.sock \
