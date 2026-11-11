@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""dsh 的 API key 登录（[[login]] command）：读一行 key，写进 dsh 的凭据文件
+$DSH_HOME/.credentials.yaml（0600；权限必须 ≤0600，dsh 的 credentials-local 对更宽的权限拒绝激活）。
+文件里已有的 records（账号 grant）原样保留，只写 refs 的 DEEPSEEK_API_KEY。"""
+import os
+import re
+import sys
+from pathlib import Path
+
+dsh_home = Path(os.environ.get("DSH_HOME") or Path.home() / ".dsh")
+cred = dsh_home / ".credentials.yaml"
+
+key = sys.stdin.readline().strip()
+if not key or re.search(r"[\s:#]", key):
+    print("没有读到像样的 DeepSeek API key：粘贴一行 key（platform.deepseek.com 创建，sk- 开头）",
+          file=sys.stderr)
+    sys.exit(1)
+
+records = ""
+try:
+    match = re.search(r"(?ms)^records:.*\Z", cred.read_text())
+    if match:
+        records = match.group(0)
+except OSError:
+    pass
+
+body = "version: 1\nrefs:\n  DEEPSEEK_API_KEY: " + key + "\n"
+if records:
+    body += "\n" + records
+
+try:
+    dsh_home.mkdir(parents=True, exist_ok=True)
+    fd = os.open(cred, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(body)
+    os.chmod(cred, 0o600)
+except OSError as error:
+    print(f"写凭据文件失败：{error}", file=sys.stderr)
+    sys.exit(1)
+print("DeepSeek API key 已保存，Agent 正在按新登录态重启")

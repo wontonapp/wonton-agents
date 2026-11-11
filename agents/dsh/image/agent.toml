@@ -1,0 +1,25 @@
+# dsh 的配置：ACP 入口是官方 CLI 自带的 acp profile（dsh --profile acp）。
+[acp]
+command = ["/opt/dsh/node_modules/.bin/dsh", "--profile", "acp"]
+
+# dsh 的本地 skill 根（user-dsh），wonton-help 装到这里。
+[skills]
+target = "~/.dsh/skills"
+
+# dsh 的 user-global 指令文件（$DSH_HOME/AGENTS.md）。
+[prompt]
+target = "~/.dsh/AGENTS.md"
+
+[gateway]
+hook = "/usr/local/lib/wonton-agent/gateway"
+
+# 登录网页：插件清单把它声明成 webui（sso: none，核心网关挡在前面），从 App 的插件页打开。
+[web]
+port = 8080
+
+# dsh 没有登录命令，只有 API key：读一行写进 ~/.dsh/.credentials.yaml（0600）。
+[[login]]
+id = "api-key"
+name = "DeepSeek API key"
+command = ["/usr/local/lib/wonton-agent/dsh-login"]
+status = ["/usr/local/lib/wonton-agent/dsh-login-status"]

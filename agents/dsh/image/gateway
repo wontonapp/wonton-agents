@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""dsh 的网关钩子：apply 把模型网关写进 acp profile 的补丁
+（$DSH_HOME/profiles/acp/cordis.patch.yml，普通 YAML 数组，整文件重写）：
+
+- acp 段固定 ACP 会话的默认模型到网关（pi-ai 自定义 provider，OpenAI 兼容）；
+- llm-pi-ai 段声明 wonton-gateway provider：密钥只引用变量名（apiKeyEnv），值留在环境变量里；
+- session-log-deepseek 段关掉会话日志插件：官方路由默认随请求回传会话日志（dsh_session_log），
+  会话日志不能发给网关。
+
+clear 删掉补丁文件，dsh 回到默认（官方路由 + 用户自己的 key）；不碰用户的凭据文件。
+补丁文件由本钩子维护：apply 覆盖、clear 删除，手工改动不保留。
+"""
+import os
+import sys
+from pathlib import Path
+
+dsh_home = Path(os.environ.get("DSH_HOME") or Path.home() / ".dsh")
+patch = dsh_home / "profiles" / "acp" / "cordis.patch.yml"
+
+if len(sys.argv) != 2 or sys.argv[1] not in ("apply", "clear"):
+    print(f"用法：{sys.argv[0]} apply|clear", file=sys.stderr)
+    sys.exit(2)
+
+if sys.argv[1] == "clear":
+    patch.unlink(missing_ok=True)
+    sys.exit(0)
+
+base_url = os.environ["WONTON_MODEL_BASE_URL"]
+model = os.environ["WONTON_MODEL_DEFAULT"]
+for name, value in (("WONTON_MODEL_BASE_URL", base_url), ("WONTON_MODEL_DEFAULT", model)):
+    if not value or "\r" in value or "\n" in value:
+        print(f"{name} 为空或含换行，写不出合法的补丁", file=sys.stderr)
+        sys.exit(1)
+
+patch.parent.mkdir(parents=True, exist_ok=True)
+patch.write_text(f"""\
+# 由 Wonton 模型网关钩子维护：apply 覆盖整个文件，clear 删除。
+- id: acp
+  config:
+    provider: wonton-gateway
+    model: {model}
+- id: llm-pi-ai
+  config:
+    providers:
+      wonton-gateway:
+        apiKeyEnv: WONTON_MODEL_API_KEY
+        api: openai-completions
+        baseURL: {base_url}
+        models:
+          - id: {model}
+- id: session-log-deepseek
+  config:
+    enabled: false
+""")

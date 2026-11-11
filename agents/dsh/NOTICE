@@ -1,0 +1,28 @@
+# dsh 插件声明
+
+## 图标
+
+`icon.svg` 是按插件规范手绘的线条图标（小写 d 字形），原创，随插件包以本仓库的 Apache-2.0 许可证分发。
+DeepSeek、dsh 和 DeepSeek Harness 是 DeepSeek 的商标；本插件不是 DeepSeek 的官方出品，也不表示得到
+它们的认可或背书。
+
+## 上游程序
+
+Agent 镜像里装的是官方 npm 包 `@deepseek-ai/dsh` 0.2.2-rc.1（registry.npmjs.org 的 tgz，按 npm 的
+dist.integrity 校验后安装），即 DeepSeek Harness CLI，ACP 经它自带的 `--profile acp` 入口提供。来源
+<https://registry.npmjs.org/@deepseek-ai/dsh>，仓库 <https://github.com/deepseek-ai/deepseek-harness>。
+
+dsh 全部 MIT 许可（含随依赖树分发的预编译平台二进制），可再分发，打进镜像；许可证全文随镜像分发
+（`image/LICENSE.dsh`）。镜像只加底座自带的 Node.js 和 npm，不修改上游程序，安装用 `--ignore-scripts`
+（上游包没有生命周期脚本，实测关闭也能正常工作）。
+
+## 模型用量
+
+dsh 本体免费（MIT）；模型用量按 DeepSeek API 计费（platform.deepseek.com 充值制）。经 Wonton 模型网关
+使用时，用量按网关的上游计费。官方路由默认随请求回传会话日志（`dsh_session_log`），插件在接网关时关掉
+它（会话日志不发给网关），没接网关时按 dsh 默认行为走官方。
+
+## ACP 桥镜像
+
+`ghcr.io/wontonapp/wonton-acp-bridge` 由 Wonton 项目构建并发布；桥只用标准 ACP 和 Matrix 客户端接口，
+不含任何厂商 Agent。
