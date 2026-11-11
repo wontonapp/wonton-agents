@@ -1,6 +1,6 @@
 # Kimi Code 子镜像：底座加 agent.toml、网关钩子和两个登录脚本。
 # 底座按摘要固定，防镜像漂移；底座升级改这一行重新构建。
-FROM ghcr.io/wontonapp/wonton-agent-base:0.1.0@sha256:5cba94459910395888a969190420492bd58f88a2928a2f8f9a7deb8b849519e9
+FROM ghcr.io/wontonapp/wonton-agent-base:0.1.1@sha256:1f66748aa0f30bae92496fabd35bebc35d9fb965762096b876a4b45c1ad2cab2
 COPY agent.toml /etc/wonton-agent/
 COPY --chmod=0755 gateway /usr/local/lib/wonton-agent/gateway
 COPY kimi_config.py /usr/local/lib/wonton-agent/kimi_config.py
