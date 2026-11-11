@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+"""Wonton Agent 底座入口：实现在 /usr/local/lib/wonton-agent/wonton_agent/ 包里，这里只把它
+加进 sys.path 再调 main。仓库里包就在这个脚本旁边，从检出目录直接跑也找得到。"""
+import sys
+
+sys.path.insert(0, "/usr/local/lib/wonton-agent")
+
+from wonton_agent.main import main
+
+main()
