@@ -49,7 +49,8 @@ release_notes() {
 # 上一个本插件的 tag（不含正在发的这个：首版发版时它自己就是列表里最新的一个，
 # 拿它当「上一个」会把 release_notes 跟自己比，必死）。Dependabot 的升级 PR 只改
 # 镜像，version 和 release_notes 攒到发版时一起改。
-last_tag="$(git tag -l "${prefix}v*" --sort=-v:refname | grep -vx -- "$tag" | head -1)"
+# grep 零匹配（没有上一个 tag）退出码是 1，pipefail 会当失败：只豁免 grep 的这一段。
+last_tag="$(git tag -l "${prefix}v*" --sort=-v:refname | { grep -vx -- "$tag" || true; } | head -1)"
 if [[ -n "$last_tag" ]]; then
   [[ "$(printf '%s\n%s\n' "$tag" "$last_tag" | sort -V | tail -1)" == "$tag" ]] ||
     die "version $version 不比上一个 tag $last_tag 新：发版前把清单的 version 改成新版本"
