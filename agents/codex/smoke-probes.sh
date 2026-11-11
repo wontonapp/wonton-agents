@@ -2,11 +2,11 @@
 # codex 的冒烟探测：看得见的面是登录网页（列两种官方登录和状态）；身份认的是核心网关
 # 的会话，不是 Codex 自己的账号体系。变量和助手（dweb、SMOKE_*）见 scripts/probes.sh 的说明。
 
-# 登录网页列出两种登录方式：[[login]] 的 id 进接口和 DOM，名字进列表行。
+# 登录网页列出两种登录方式：页面是 JS 渲染的，列表走 /api/logins 接口。
 web_assert() {
-  local page
-  page="$(web_get /)" || return 1
-  grep -qF 'chatgpt' <<<"$page" && grep -qF 'api-key' <<<"$page"
+  local json
+  json="$(web_get /api/logins)" || return 1
+  grep -qF 'chatgpt' <<<"$json" && grep -qF 'api-key' <<<"$json"
 }
 
 # 登录网页没有用户体系：认出的是核心网关的会话，不是 Codex 的账号。probes.sh 从这份
