@@ -1,0 +1,41 @@
+id: ai.qwen-code
+version: 0.1.0
+title: { zh: Qwen Code, en: Qwen Code }
+description:
+  zh: 阿里巴巴的 Qwen Code 编程 Agent，在聊天里按你的确认动手
+  en: Alibaba's Qwen Code coding agent that acts in chat, asking before it acts
+about:
+  zh: |
+    Qwen Code 以 Bot 的身份住进聊天。接上模型网关时，模型的调用默认走网关，不用账号，也不用填任何 key。
+    没接网关时 Agent 照样能起来：在插件页的登录网页（默认 Bot）或聊天里发 /wonton login（这个聊天对应的
+    Bot），贴一个自己的 Qwen API key（阿里云百炼 DashScope 的 OpenAI 兼容接口；其他平台的 key 请接网关）。
+
+    会话按 default 模式跑：改文件、跑命令之前经确认卡片问你；Wonton 插件的工具也从聊天里调。
+    和它的对话是核心建的加密私聊，重启后接着聊。
+  en: |
+    Qwen Code lives in the chat as a bot. With the model gateway connected, models are called through it,
+    with no account and no key to fill in. Without a gateway the agent still starts: open the login page
+    on the plugin screen (default bot) or send /wonton login in the chat (this chat's bot) and paste your
+    own Qwen API key (Alibaba Cloud ModelStudio's OpenAI-compatible endpoint; for keys of other platforms
+    use the model gateway).
+
+    Sessions run in default mode: it asks through confirmation cards before editing files or running
+    commands; Wonton plugin tools are called from the chat.
+    The chat is an encrypted direct message the core creates, and it carries on after a restart.
+release_notes:
+  zh: "首个版本：Qwen Code 0.27.2，经桥说 ACP，模型走网关或自己的 API key。"
+  en: "First version: Qwen Code 0.27.2 over the shared bridge, models via the gateway or its own API key."
+license: Apache-2.0
+notices: [NOTICE, image/LICENSE.qwen-code]
+homepage: https://github.com/QwenLM/qwen-code
+tags: { zh: [AI, 开发], en: [AI, Development] }
+acp_mode: default
+memory: 3G
+env:
+  # 官方 API key 登录的缺省端点和模型（阿里云百炼）；接了网关时被网关钩子的值顶掉。
+  OPENAI_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
+  OPENAI_MODEL: qwen3-coder-plus
+webui: true
+login:
+  - id: api-key
+    title: { zh: Qwen API key, en: Qwen API key }
