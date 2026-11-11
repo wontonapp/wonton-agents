@@ -6,8 +6,8 @@ DeepSeek 的 dsh（DeepSeek Harness）住在云吞里：官方 npm 包 `@deepsee
 或从插件页打开登录网页（默认 Bot），贴一个自己的 DeepSeek API key（platform.deepseek.com 创建）。登录态存在
 数据目录的 `.credentials.yaml`（0600），容器重建后还在；网关接入或卸掉后重启容器即切换。
 
-dsh 的会话日志和遥测默认回传上游，插件把它关了（`DSH_TELEMETRY_MODE=DISABLED`；接网关时同时关掉
-`session-log-deepseek` 插件，会话日志不发给网关）。
+dsh 的会话日志和遥测默认回传上游，插件把它关了（`DSH_TELEMETRY_MODE=DISABLED`；无论走网关还是
+用户自己的 key，都关掉 `session-log-deepseek` 插件，会话日志不出容器）。
 
 ## 实测记录
 

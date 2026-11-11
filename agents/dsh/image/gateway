@@ -7,8 +7,9 @@
 - session-log-deepseek 段关掉会话日志插件：官方路由默认随请求回传会话日志（dsh_session_log），
   会话日志不能发给网关。
 
-clear 删掉补丁文件，dsh 回到默认（官方路由 + 用户自己的 key）；不碰用户的凭据文件。
-补丁文件由本钩子维护：apply 覆盖、clear 删除，手工改动不保留。
+clear 删掉网关段、保留关会话日志：没接网关时 dsh 走官方路由加用户自己的 key
+（登录网页或 /wonton login 写进凭据文件），会话日志默认也关，官方路由收不到。
+补丁文件由本钩子维护：apply 覆盖、clear 重写，手工改动不保留。
 """
 import os
 import sys
@@ -17,12 +18,21 @@ from pathlib import Path
 dsh_home = Path(os.environ.get("DSH_HOME") or Path.home() / ".dsh")
 patch = dsh_home / "profiles" / "acp" / "cordis.patch.yml"
 
+SESSION_LOG_OFF = """- id: session-log-deepseek
+  config:
+    enabled: false
+"""
+
 if len(sys.argv) != 2 or sys.argv[1] not in ("apply", "clear"):
     print(f"用法：{sys.argv[0]} apply|clear", file=sys.stderr)
     sys.exit(2)
 
+patch.parent.mkdir(parents=True, exist_ok=True)
 if sys.argv[1] == "clear":
-    patch.unlink(missing_ok=True)
+    patch.write_text(
+        "# 由 Wonton 模型网关钩子维护：apply 覆盖整个文件，clear 保留关会话日志。\n"
+        + SESSION_LOG_OFF
+    )
     sys.exit(0)
 
 base_url = os.environ["WONTON_MODEL_BASE_URL"]
@@ -32,9 +42,8 @@ for name, value in (("WONTON_MODEL_BASE_URL", base_url), ("WONTON_MODEL_DEFAULT"
         print(f"{name} 为空或含换行，写不出合法的补丁", file=sys.stderr)
         sys.exit(1)
 
-patch.parent.mkdir(parents=True, exist_ok=True)
 patch.write_text(f"""\
-# 由 Wonton 模型网关钩子维护：apply 覆盖整个文件，clear 删除。
+# 由 Wonton 模型网关钩子维护：apply 覆盖整个文件，clear 保留关会话日志。
 - id: acp
   config:
     provider: wonton-gateway
@@ -48,7 +57,4 @@ patch.write_text(f"""\
         baseURL: {base_url}
         models:
           - id: {model}
-- id: session-log-deepseek
-  config:
-    enabled: false
-""")
+""" + SESSION_LOG_OFF)
