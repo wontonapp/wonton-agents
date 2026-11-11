@@ -1,0 +1,31 @@
+Wonton 的 Qwen Code 插件
+========================
+
+上游程序
+--------
+
+- Qwen Code CLI：`@qwen-code/qwen-code` 0.27.2，阿里云 Qwen 团队的官方命令行程序，仓库
+  https://github.com/QwenLM/qwen-code ，许可证 Apache-2.0（全文见
+  `image/LICENSE.qwen-code`）。npm 包的 dependencies 为空，运行代码自带。
+
+随镜像分发
+--------
+
+Qwen Code 0.27.2 随插件镜像分发：构建时从官方 npm registry 下载
+（sha512 摘要 `0X3lJvQI262mGK3P5iEQiGxu2Zg44aaV3du6Pe/JcWuhwlNeM9/cZF8bIpBhOgaymeSe8az15m//h5MHXHEkew==`，
+不符即构建失败），解包到镜像里，不改它的任何文件。它按 Apache-2.0 授权再分发，许可证和本声明随镜像走。
+
+运行时跑的是未改动的官方 CLI，API key 只写在用户自己的数据目录（`~/.qwen/.env`，0600），
+Wonton 不收集、不留存。
+
+商标
+----
+
+Qwen、Qwen Code 和通义千问是阿里巴巴的商标。本插件由 Wonton 维护，不是阿里巴巴的官方出品，
+也没有得到它的背书。
+
+图标
+----
+
+`icon.svg` 是按 wonton-docs 的线条图标规则自己画的（字母 Q 的线条图形），不是上游标志的
+复刻；随插件包以 MIT 许可证分发。

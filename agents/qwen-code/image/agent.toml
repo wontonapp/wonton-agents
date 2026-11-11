@@ -1,0 +1,37 @@
+# qwen-code 的底座配置：qwen-code 0.27.2（Apache-2.0，npm 包 dependencies 为空）按摘要打进镜像，
+# 不需要 [[install]] 首启下载。
+
+# qwen-code 读用户目录下的 ~/.qwen/QWEN.md 当记忆、~/.qwen/skills 当 skill。
+[skills]
+target = "~/.qwen/skills"
+
+[prompt]
+target = "~/.qwen/QWEN.md"
+
+[gateway]
+hook = "/usr/local/lib/wonton-agent/gateway"
+
+# qwen-code 的 OpenAI 兼容认证认 OPENAI_BASE_URL、OPENAI_API_KEY、OPENAI_MODEL 三个环境变量；
+# 网关接好时底座把 WONTON_MODEL_* 的值放进来，key 不落盘。没接网关时这些映射不加，
+# compose 里的官方缺省端点生效。
+[gateway.env]
+OPENAI_BASE_URL = "WONTON_MODEL_BASE_URL"
+OPENAI_API_KEY = "WONTON_MODEL_API_KEY"
+OPENAI_MODEL = "WONTON_MODEL_DEFAULT"
+
+[acp]
+command = ["node", "/usr/local/lib/wonton-agent/qwen-code/cli-entry.js", "--acp"]
+# CLI 会用配色码画终端界面，桥自己也会剥；这里保持缺省。
+
+# 登录网页：0.0.0.0:8080，清单声明成 webui（核心网关挡着，只有主人打得开）。
+[web]
+port = 8080
+
+# API key 登录：读一行 key 写进 ~/.qwen/.env（0600），qwen-code 自己会读它。
+# 它的 Qwen 账号 OAuth 只剩交互 TUI 里的 /auth（`qwen auth` 子命令 0.27 已删除），聊天和网页的
+# 行式输入跑不起来，所以只做 API key。
+[[login]]
+id = "api-key"
+name = "Qwen API key（阿里云百炼）"
+command = ["/usr/local/lib/wonton-agent/api-key-login"]
+status = ["/usr/local/lib/wonton-agent/api-key-status"]
