@@ -1,20 +1,8 @@
-# Codex 的安装来源：ACP 适配器和它依赖的 Codex CLI 都不打进镜像，首次启动按
-# 版本和 npm dist.integrity 从官方 registry 下载到数据卷（闭源上游的规矩对开源 CLI
-# 同样省事：镜像小、升级只改这里）。
-[[install]]
-name = "codex-acp"
-version = "2.6.0"
-source = "npm"
-package = "@agentclientprotocol/codex-acp"
-# npm dist.integrity（sha512-<base64>），registry.npmjs.org 的 2.6.0 元数据。
-# 适配器依赖 @openai/codex ^0.166.0，包里没有 npm-shrinkwrap.json，CLI 版本跟着
-# semver 走；升级时按注册表机器人的 PR 重取 integrity。
-integrity = "sha512-/PBsd0H6URy4bhXhAeXqwb7RqctbXfNceRihAh6nDmn5HJ873uzoHvHxF45YmeWfgOKKRrNRLZjYsket2a7EsQ=="
-
 [acp]
-# 适配器的 bin（dist/index.js，shebang 走容器里的 node）。CODEX_PATH 不设：适配器
-# 自己从 node_modules 解析 @openai/codex/bin/codex.js 当 CLI（登录和 app-server 都是）。
-command = ["/data/agent/tools/codex-acp/2.6.0/dist/index.js"]
+# 适配器打进镜像（Apache-2.0 的开源 npm 包，Dockerfile 按摘要装）：bin 是
+# dist/index.js，shebang 走容器里的 node。CODEX_PATH 不设：适配器自己从同目录的
+# node_modules 解析 @openai/codex/bin/codex.js 当 CLI（登录和 app-server 都是）。
+command = ["/opt/codex-acp/dist/index.js"]
 
 [skills]
 target = "~/.agents/skills"
@@ -37,12 +25,12 @@ port = 8080
 [[login]]
 id = "chatgpt"
 name = "ChatGPT 账号（设备码）"
-command = ["/data/agent/tools/codex-acp/2.6.0/node_modules/@openai/codex/bin/codex.js", "login", "--device-auth"]
-status = ["/data/agent/tools/codex-acp/2.6.0/node_modules/@openai/codex/bin/codex.js", "login", "status"]
+command = ["/opt/codex-acp/node_modules/@openai/codex/bin/codex.js", "login", "--device-auth"]
+status = ["/opt/codex-acp/node_modules/@openai/codex/bin/codex.js", "login", "status"]
 
 [[login]]
 id = "api-key"
 name = "OpenAI API key"
-command = ["/data/agent/tools/codex-acp/2.6.0/node_modules/@openai/codex/bin/codex.js", "login", "--with-api-key"]
+command = ["/opt/codex-acp/node_modules/@openai/codex/bin/codex.js", "login", "--with-api-key"]
 stdin = "line_then_eof"
-status = ["/data/agent/tools/codex-acp/2.6.0/node_modules/@openai/codex/bin/codex.js", "login", "status"]
+status = ["/opt/codex-acp/node_modules/@openai/codex/bin/codex.js", "login", "status"]

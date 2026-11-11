@@ -1,6 +1,31 @@
-# codex 的子镜像：只写这家躲不开的几样，其余全在 wonton-agent-base 底座里。
+# codex 的子镜像：底座之上的全部差异是 COPY 进来的几样，再加打进镜像的开源 CLI。
+# Codex CLI 和 ACP 适配器都是 Apache-2.0 的开源 npm 包，按底座对开源 CLI 的路子直接
+# 打进镜像（运行时不用下载，首启不依赖出网）；版本和摘要固定在下面，升级改这里。
 # 底座按摘要固定，防镜像漂移；底座升级改这一行重新构建。
 FROM ghcr.io/wontonapp/wonton-agent-base:0.1.0@sha256:5cba94459910395888a969190420492bd58f88a2928a2f8f9a7deb8b849519e9
+
+ARG CODEX_ACP_VERSION=2.6.0
+# npm dist.integrity 的 sha512，展开成十六进制校验（registry.npmjs.org 的 2.6.0 元数据）。
+# 适配器依赖 @openai/codex ^0.166.0，包里没有 npm-shrinkwrap.json，CLI 版本跟着 semver 走；
+# 升级时按注册表机器人的 PR 重取版本和摘要。
+ARG CODEX_ACP_SHA512=fcf06c7741fa511cb86e15e101e5eac1bed1a9cb5b5df35c7918a1021ea70e69f91c9f3bdeece81ef1f1178e5899e59f80e28a46b3512d98d8b247add9aec4b1
+
+USER root
+# 下载、解包、装依赖各占一层：重跑只重来失败的一步。npm 慢或抖的网络上
+# curl 带断点重试，npm 加大重试和超时。
+RUN set -eu \
+    && curl --fail --silent --show-error --location --retry 8 --retry-all-errors \
+         --continue-at - --retry-delay 3 --max-time 600 \
+         "https://registry.npmjs.org/@agentclientprotocol/codex-acp/-/codex-acp-${CODEX_ACP_VERSION}.tgz" \
+         --output /tmp/codex-acp.tgz \
+    && echo "${CODEX_ACP_SHA512}  /tmp/codex-acp.tgz" | sha512sum --check --strict \
+    && mkdir -p /opt/codex-acp \
+    && tar -xzf /tmp/codex-acp.tgz -C /opt/codex-acp --strip-components=1 \
+    && rm /tmp/codex-acp.tgz
+RUN npm install --prefix /opt/codex-acp --ignore-scripts --no-audit --no-fund --loglevel=error \
+    --fetch-retries 8 --fetch-retry-maxtimeout 90000 --fetch-timeout 600000
+USER 65532:65532
+
 COPY agent.toml /etc/wonton-agent/
 COPY --chmod=0755 gateway /usr/local/lib/wonton-agent/gateway
 # Codex 对目录外的模型要求完整模型元数据：这份 prompt.md（Codex 上游对未知模型的
