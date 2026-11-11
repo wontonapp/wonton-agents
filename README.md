@@ -48,8 +48,9 @@ docker build -t ghcr.io/wontonapp/wonton-agent-base:dev base
 
 ### 越界操作怎么触发确认卡片
 
-Agent 动手前请主人确认的卡都是 CLI 自己要的：它经 ACP 的 `session/request_permission` 问桥，桥转成核心的
+Agent 越界动手前的确认卡是 CLI 自己要的：它经 ACP 的 `session/request_permission` 问桥，桥转成核心的
 权限确认卡——桥给每个选项编一个 `choice_id`，回答时映射回 ACP 的 optionId——主人答完再转回给 Agent。
+（Wonton MCP 工具调用出的卡是核心按自己的工具策略出的，不在这节范围内。）
 各家 CLI 什么时候发这个请求差别很大：有的动手前就问，有的先靠自己的沙箱挡、被拒后要模型带着参数重试才升级。
 接入新的一家时照实写进这家的 README，并更新下表：
 
