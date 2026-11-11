@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""登录网页的转发：插件页的 webui 不能指向 Bot 服务，登录网页又只在 agent 容器里（每个 Bot 一份），
+所以架一个全插件一份的转发，把网关的请求按 TCP 转给默认 Bot 的 agent。
+
+逐连接双向搬运字节，SSE 事件流不会被缓冲。目标取 WEB_TARGET，默认就是默认 Bot 的 agent 别名。
+"""
+import os
+import socket
+import threading
+
+LISTEN = int(os.environ.get("WEB_PORT", "8080"))
+TARGET = os.environ.get("WEB_TARGET", "agent-default")
+TARGET_PORT = int(os.environ.get("WEB_TARGET_PORT", "8080"))
+
+
+def pump(source: socket.socket, sink: socket.socket) -> None:
+    try:
+        while chunk := source.recv(65536):
+            sink.sendall(chunk)
+    except OSError:
+        pass
+    finally:
+        try:
+            sink.shutdown(socket.SHUT_WR)
+        except OSError:
+            pass
+
+
+def handle(client: socket.socket) -> None:
+    try:
+        upstream = socket.create_connection((TARGET, TARGET_PORT), timeout=10)
+    except OSError:
+        client.close()
+        return
+    upstream.settimeout(None)
+    client.settimeout(None)
+    back = threading.Thread(target=pump, args=(upstream, client), daemon=True)
+    back.start()
+    pump(client, upstream)
+    back.join()
+    upstream.close()
+    client.close()
+
+
+def main() -> None:
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind(("0.0.0.0", LISTEN))
+    server.listen(64)
+    while True:
+        client, _ = server.accept()
+        threading.Thread(target=handle, args=(client,), daemon=True).start()
+
+
+if __name__ == "__main__":
+    main()

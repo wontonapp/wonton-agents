@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""qwen-code 的网关钩子：apply 把网关写进 ~/.qwen/settings.json，clear 逐键还原。
+
+qwen-code 认 OpenAI 兼容的三个环境变量，key 按条目的 envKey 从环境变量读，密钥不落盘；
+设置里只写变量名。apply 选 security.auth.selectedType=openai 免掉启动的 /auth 对话框，
+model.name 和 modelProviders.openai 的条目都指向网关的缺省模型；用户自己的条目留在前面不动。
+mcp.allowed 只放行 Wonton MCP、关掉自动更新检查这两项跟网关无关，两种模式都保证在。
+"""
+import os
+import sys
+
+sys.path.insert(0, "/usr/local/lib/wonton-agent")
+import qwen_settings as qs  # noqa: E402
+
+AUTH_PATH = ("security", "auth", "selectedType")
+# 会话默认从 model.name 起步，必须指到 modelProviders 里的一条。
+MODEL_NAME_PATH = ("model", "name")
+PROVIDER_PATH = ("modelProviders", "openai")
+
+
+def drop_gateway_entries(entries) -> list:
+    return [e for e in entries if not (isinstance(e, dict) and e.get("description") == qs.GATEWAY_ENTRY_MARK)]
+
+
+def ensure_common(data: dict) -> None:
+    """跟网关无关的两项：MCP 只放行 Wonton（桥在 session/new 里把它叫 wonton），关自动更新。"""
+    mcp = qs.ensure(data, "mcp")
+    allowed = mcp.setdefault("allowed", ["wonton"])
+    if isinstance(allowed, list) and "wonton" not in allowed:
+        allowed.append("wonton")
+    general = qs.ensure(data, "general")
+    general["enableAutoUpdate"] = False
+
+
+def clear() -> None:
+    data = qs.load()
+    ensure_common(data)
+    backup = qs.read_backup()
+    if backup is not None:
+        if backup.get("selectedType") is None:
+            qs.ensure(data, "security", "auth").pop("selectedType", None)
+        else:
+            qs.ensure(data, "security", "auth")["selectedType"] = backup["selectedType"]
+        if backup.get("modelName") is None:
+            qs.ensure(data, "model").pop("name", None)
+        else:
+            qs.ensure(data, "model")["name"] = backup["modelName"]
+        entries = qs.at(data, *PROVIDER_PATH)
+        if isinstance(entries, list):
+            entries = drop_gateway_entries(entries)
+            if entries:
+                data["modelProviders"]["openai"] = entries
+            else:
+                del data["modelProviders"]["openai"]
+                if not data["modelProviders"]:
+                    del data["modelProviders"]
+        qs.save(data)
+        qs.BACKUP.unlink(missing_ok=True)
+    else:
+        qs.save(data)
+    print("网关配置已从 ~/.qwen/settings.json 移除")
+
+
+def write() -> None:
+    base = os.environ["WONTON_MODEL_BASE_URL"].strip()
+    model = os.environ["WONTON_MODEL_DEFAULT"].strip()
+    data = qs.load()
+    ensure_common(data)
+    # 上次 apply 的备份还在就沿用，别把网关自己的值当用户的值再备份一遍。
+    if qs.read_backup() is None:
+        qs.write_backup({
+            "selectedType": qs.at(data, *AUTH_PATH),
+            "modelName": qs.at(data, *MODEL_NAME_PATH),
+        })
+    entries = qs.at(data, *PROVIDER_PATH)
+    if entries is None:
+        entries = []
+    elif not isinstance(entries, list):
+        sys.exit(f"{qs.SETTINGS} 的 modelProviders.openai 不是数组，先手工修好再启动")
+    entries = drop_gateway_entries(entries)
+    entries.append({
+        "id": model,
+        "name": model,
+        "baseUrl": base,
+        "envKey": "OPENAI_API_KEY",
+        "description": qs.GATEWAY_ENTRY_MARK,
+    })
+    data.setdefault("modelProviders", {})["openai"] = entries
+    qs.ensure(data, "security", "auth")["selectedType"] = "openai"
+    qs.ensure(data, "model")["name"] = model
+    qs.save(data)
+    print(f"网关配置已写进 ~/.qwen/settings.json：{base}，模型 {model}")
+
+
+if __name__ == "__main__":
+    action = sys.argv[1] if len(sys.argv) > 1 else ""
+    if action == "apply":
+        write()
+    elif action == "clear":
+        clear()
+    else:
+        sys.exit(f"用法：{sys.argv[0]} apply|clear")
