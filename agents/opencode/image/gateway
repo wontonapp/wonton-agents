@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""网关钩子：apply 把网关写进 opencode 的全局配置 ~/.config/opencode/opencode.json（实测 2.2.7
+自定义服务商要写在 `providers` 键下，V1 的单数 `provider` 键会走迁移、丢 package），clear 删掉
+整个文件——这份文件由钩子全权管理，opencode 自己的登录态在 SQLite（~/.local/share/opencode），
+不在这里。密钥只以变量名写进 providers.wonton.env，值留在环境变量里。"""
+import json
+import os
+import sys
+from pathlib import Path
+
+CONFIG = Path(os.path.expanduser("~/.config/opencode/opencode.json"))
+PROVIDER_ID = "wonton"
+
+
+def apply() -> None:
+    base = os.environ["WONTON_MODEL_BASE_URL"].strip()
+    model = os.environ["WONTON_MODEL_DEFAULT"].strip()
+    config = {
+        "$schema": "https://opencode.ai/config.json",
+        # opencode 的 model 引用是 provider/model 两段，模型 id 里的斜杠不碍事（实测 2.2.7）。
+        "model": f"{PROVIDER_ID}/{model}",
+        "providers": {
+            PROVIDER_ID: {
+                "name": "Wonton",
+                "env": ["WONTON_MODEL_API_KEY"],
+                "package": "@opencode/ai/providers/openai-compatible",
+                "settings": {"baseURL": base},
+                "models": {model: {"name": model}},
+            },
+        },
+        # 只放行 Wonton MCP（桥按会话传进来的服务器），其余工具照 opencode 缺省一律先问：
+        # MCP 工具的权限动作是「服务器名_工具名」，wonton_ 前缀一条就盖住（* 也吃下划线）。
+        # opencode 内置 agent 缺省放开一切（实测 2.2.7：Agent.Info 的缺省 ruleset 是 allow-all），
+        # 改文件和跑命令显式收紧成先问，桥才转得成主人的确认卡片。
+        "permissions": [
+            {"action": "wonton_*", "resource": "*", "effect": "allow"},
+            {"action": "edit", "resource": "*", "effect": "ask"},
+            {"action": "shell", "resource": "*", "effect": "ask"},
+        ],
+    }
+    CONFIG.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG.write_text(json.dumps(config, indent=2) + "\n")
+    print(f"网关配置已写进 {CONFIG}：{base}，模型 {model}")
+
+
+def clear() -> None:
+    CONFIG.unlink(missing_ok=True)
+    print(f"网关配置已从 {CONFIG} 移除")
+
+
+if __name__ == "__main__":
+    action = sys.argv[1] if len(sys.argv) > 1 else ""
+    if action == "apply":
+        apply()
+    elif action == "clear":
+        clear()
+    else:
+        sys.exit(f"用法：{sys.argv[0]} apply|clear")

@@ -1,0 +1,41 @@
+id: ai.opencode
+version: 0.1.0
+title: { zh: OpenCode, en: OpenCode }
+description:
+  zh: OpenCode 官方 CLI 的 ACP 接入；模型走云吞网关，官方账号经终端登录
+  en: OpenCode's official CLI over ACP; models via the Wonton gateway, official account via terminal login
+about:
+  zh: |
+    OpenCode（https://opencode.ai，MIT）是开源的编程 Agent。这个插件用它的官方 CLI（`opencode acp`），
+    在首次启动时从 GitHub 按摘要下载到数据卷，镜像里不打上游程序。
+
+    模型默认走云吞的模型网关（网关就绪后自动接上，不需要登录）；想用 OpenCode 自己的模型服务时，
+    在聊天里发 /wonton login，或在插件的登录网页里粘贴 OpenCode 的 API key。
+
+    OpenCode 会改文件、跑命令：主会话默认在 plan 模式（只读，改文件被拒），话题会话在 build 模式，
+    改文件和跑命令都会先弹确认卡片。
+  en: |
+    OpenCode (https://opencode.ai, MIT) is an open source coding agent. This plugin runs its official CLI
+    (`opencode acp`), downloaded from GitHub by digest into the data volume on first start; no upstream
+    program ships in the image.
+
+    Models go through the Wonton model gateway by default (connected automatically once the gateway is
+    ready, no login needed); to use OpenCode's own model service instead, send /wonton login in chat or
+    paste your OpenCode API key on the plugin's login page.
+
+    OpenCode edits files and runs commands: the main session starts in plan mode (read-only, edits are
+    refused) and topic sessions in build mode, where edits and commands ask first via confirmation cards.
+release_notes:
+  zh: 首个版本。
+  en: First version.
+license: MIT
+notices: [NOTICE]
+homepage: https://github.com/wontonapp/wonton-agents
+tags: { zh: [AI, 工具], en: [AI, Tools] }
+acp_mode: plan
+acp_topic_mode: build
+memory: 512M
+login:
+  - id: opencode
+    title: { zh: OpenCode 账号（粘贴 API key）, en: OpenCode account (paste API key) }
+webui: true
