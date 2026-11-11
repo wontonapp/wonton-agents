@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import http.server
+import json
 import os
 import shutil
 import tarfile
@@ -62,13 +63,14 @@ class FakeRegistry:
         self.server.server_close()
 
 
-def npm_package_tgz(version: str = "1.0.0") -> bytes:
+def npm_package_tgz(version: str = "1.0.0", dev_dependencies: str = "") -> bytes:
     root = Path(tempfile.mkdtemp(prefix="ab-pkg-"))
     try:
         package = root / "package"
         (package / "bin").mkdir(parents=True)
+        dev = f',"devDependencies":{dev_dependencies}' if dev_dependencies else ""
         (package / "package.json").write_text(
-            f'{{"name":"echo","version":"{version}","bin":{{"echo":"bin/echo"}}}}')
+            f'{{"name":"echo","version":"{version}","bin":{{"echo":"bin/echo"}}{dev}}}')
         (package / "bin" / "echo").write_text("#!/bin/sh\necho package-echo\n")
         (package / "bin" / "echo").chmod(0o755)  # 真实 CLI 包的 tarball 自带执行位
         archive = root / f"echo-{version}.tgz"
@@ -130,6 +132,16 @@ class InstallTests(unittest.TestCase):
         self.assertTrue(npm_calls[0].is_relative_to(self.tools))
         self.assertIn(".echo-1.0.0.download-", npm_calls[0].name)
         self.assertEqual(registry.requests, ["/@scope/echo/-/echo-1.0.0.tgz"])
+
+    def test_npm_dev_dependencies_stripped_before_install(self):
+        # 官方 CLI 包常在 devDependencies 里引用未发布的内部包；这些是构建期依赖，
+        # 装之前要摘掉，npm install 才不会为它们 404（实测 kimi-code 2.5.3）。
+        data = npm_package_tgz(dev_dependencies='{"@scope/only-build": "^1.0.0"}')
+        with FakeRegistry({"/@scope/echo/-/echo-1.0.0.tgz": data}) as registry:
+            agent.install_tools(self.npm_config(sha512_integrity(data), registry.base))
+        manifest = json.loads((self.tools / "echo" / "1.0.0" / "package.json").read_text())
+        self.assertNotIn("devDependencies", manifest)
+        self.assertEqual(manifest["bin"], {"echo": "bin/echo"})
 
     def test_npm_source_cli_lands_at_package_bin_path(self):
         # CLI 本体在包的 tgz 里，位置跟包里 package.json 的 bin 字段走（这里是 bin/echo）：

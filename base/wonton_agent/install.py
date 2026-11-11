@@ -1,6 +1,7 @@
 """[[install]] 按需安装闭源 CLI：首次启动从官方源下载到数据卷的版本目录，摘要核对通过才落盘。
 闭源 CLI 不打进发布的镜像（要跟官方源、按版本和摘要核对）。"""
 import hashlib
+import json
 import os
 import platform
 import shutil
@@ -68,6 +69,18 @@ def install_tools(config: dict) -> None:
             shutil.rmtree(staging, ignore_errors=True)
 
 
+def strip_dev_dependencies(package_json: Path, name: str) -> None:
+    # devDependencies 是 CLI 仓库的构建期依赖，官方包常在这里引用未发布的内部包
+    # （实测 kimi-code 2.5.3 的 @moonshot-ai/acp-server 就是 404），装它们只会失败；
+    # 运行只认 dependencies，CLI 本体是打进包里的 bundle，不依赖这些包。
+    try:
+        manifest = json.loads(package_json.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise RuntimeError(f"安装 {name}：package.json 读不出来（{error}）") from error
+    if isinstance(manifest, dict) and manifest.pop("devDependencies", None) is not None:
+        package_json.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
 def install_npm_package(item: dict, staging: Path) -> None:
     name, package = item["name"], item["package"]
     filename = package.split("/")[-1]
@@ -91,6 +104,7 @@ def install_npm_package(item: dict, staging: Path) -> None:
         shutil.move(str(child), staging / child.name)
     extracted.rmdir()
     archive.unlink()
+    strip_dev_dependencies(staging / "package.json", name)
     npm_install(staging)
 
 
