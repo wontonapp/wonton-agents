@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""omp 的网关钩子：apply 把网关写进 ~/.omp/agent/ 的 models.yml 和 config.yml，clear 再移出去，
+其余内容保留。omp 不读 OPENAI_* 变量；密钥不落盘：models.yml 的 apiKey 只写变量名，omp 取值时
+才按名字读环境变量（变量没设时会把名字当字面量用，所以 apply 前提是三个变量都有值，底座保证）。"""
+import json
+import os
+import sys
+from pathlib import Path
+
+CONFIG_DIR = Path(os.environ.get("HOME", "/data/agent/home")) / ".omp" / "agent"
+PROVIDER = "wonton"
+ROLES = ("default", "smol", "slow", "plan")
+
+
+def read_json(path: Path) -> dict | None:
+    try:
+        text = path.read_text()
+    except FileNotFoundError:
+        return None
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"{path} 不是合法 JSON，没法安全地改：{error}") from error
+    return value if isinstance(value, dict) else None
+
+
+def apply() -> None:
+    model = os.environ["WONTON_MODEL_DEFAULT"]
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    provider = {
+        "baseUrl": os.environ["WONTON_MODEL_BASE_URL"],
+        "api": "openai-completions",
+        "apiKey": "WONTON_MODEL_API_KEY",
+        "models": [{"id": model}],
+    }
+    (CONFIG_DIR / "models.yml").write_text(json.dumps({"providers": {PROVIDER: provider}}))
+    selector = f"{PROVIDER}/{model}"
+    (CONFIG_DIR / "config.yml").write_text(json.dumps({"modelRoles": {role: selector for role in ROLES}}))
+
+
+def clear() -> None:
+    models_path = CONFIG_DIR / "models.yml"
+    models = read_json(models_path)
+    providers = models.get("providers") if models else None
+    if isinstance(providers, dict) and PROVIDER in providers:
+        del providers[PROVIDER]
+        if providers:
+            models_path.write_text(json.dumps(models))
+        else:
+            models_path.unlink()
+
+    config_path = CONFIG_DIR / "config.yml"
+    settings = read_json(config_path)
+    roles = settings.get("modelRoles") if settings else None
+    if isinstance(roles, dict):
+        kept = {
+            role: model
+            for role, model in roles.items()
+            if not (isinstance(model, str) and model.startswith(f"{PROVIDER}/"))
+        }
+        if kept != roles:
+            if kept:
+                settings["modelRoles"] = kept
+                config_path.write_text(json.dumps(settings))
+            else:
+                settings.pop("modelRoles", None)
+                if settings:
+                    config_path.write_text(json.dumps(settings))
+                else:
+                    config_path.unlink()
+
+
+def main() -> None:
+    if len(sys.argv) != 2 or sys.argv[1] not in ("apply", "clear"):
+        print(f"用法：{sys.argv[0]} apply|clear", file=sys.stderr)
+        sys.exit(2)
+    (apply if sys.argv[1] == "apply" else clear)()
+
+
+if __name__ == "__main__":
+    main()

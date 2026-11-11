@@ -1,0 +1,35 @@
+id: ai.omp.agent
+version: 0.1.4
+title: { zh: omp, en: omp }
+description:
+  zh: 会用工具写代码、跑命令的 Agent，在聊天里按你的确认动手
+  en: A tool-using coding agent that acts in chat, asking before it runs commands
+about:
+  zh: |
+    omp 以 Bot 的身份住进聊天。接上模型网关时，模型的调用默认走网关，不用账号，也不用填任何 key。没接网关时
+    Agent 照样能起来：在聊天里发 /wonton login，用它自己的官方登录——模型账号（链接发进聊天，浏览器里授权后把
+    跳转地址或授权码发回来）或直接填模型的 key。
+
+    会话按 plan 模式跑：动工作区之前先出计划，跑命令前经确认卡片问你；Wonton 插件的工具从聊天里调。
+    和它的对话是核心建的加密私聊，重启后接着聊。
+  en: |
+    omp lives in the chat as a bot. With the model gateway connected, models are called through it, with no
+    account and no key to fill in. Without a gateway the agent still starts: send /wonton login in the chat to
+    use its own official sign-in — a model account (the link is posted to the chat; after authorizing in the
+    browser, send the redirect URL or code back) or a model key.
+
+    Sessions run in plan mode: it drafts a plan before touching the workspace and asks through confirmation
+    cards before running commands; Wonton plugin tools are called from the chat.
+    The chat is an encrypted direct message the core creates, and it carries on after a restart.
+release_notes:
+  zh: 改为随 wonton-agents 仓库的公共底座发版；接网关、登录和用法不变。
+  en: Now released from the wonton-agents monorepo on the shared base; gateway, sign-in and usage are unchanged.
+license: MIT
+notices: [NOTICE, image/LICENSE.omp]
+homepage: https://omp.sh
+tags: { zh: [AI, 开发], en: [AI, Development] }
+acp_mode: plan
+memory: 1G
+login:
+  - id: terminal
+    title: { zh: 模型账号登录, en: Model account sign-in }
