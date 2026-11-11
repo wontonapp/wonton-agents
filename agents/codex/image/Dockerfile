@@ -3,7 +3,7 @@
 # 打进镜像（运行时不用下载，首启不依赖出网）；版本和摘要固定在下面，升级改这里。
 # 底座按摘要固定，防镜像漂移；底座升级改这一行重新构建。BASE_IMAGE 只给本地开发
 # 覆盖用（发布构建不带这个参数，走上面的固定摘要）。
-ARG BASE_IMAGE=ghcr.io/wontonapp/wonton-agent-base:0.1.0@sha256:5cba94459910395888a969190420492bd58f88a2928a2f8f9a7deb8b849519e9
+ARG BASE_IMAGE=ghcr.io/wontonapp/wonton-agent-base:0.1.1@sha256:1f66748aa0f30bae92496fabd35bebc35d9fb965762096b876a4b45c1ad2cab2
 FROM ${BASE_IMAGE}
 
 ARG CODEX_ACP_VERSION=2.6.0
@@ -34,9 +34,7 @@ USER 65532:65532
 COPY agent.toml /etc/wonton-agent/
 # 容器即沙箱的托管约束（模式限制 + 写命令确认规则），见文件头注释和 README。
 COPY requirements.toml /etc/codex/requirements.toml
-# 底座 0.1.0 还没有 web 服务的转发器（base 的修复 PR 合了以后这行和文件删掉），
-# qwen-code 同款：自足的 TCP 字节搬运，SSE 不缓冲。
-COPY --chmod=0755 gateway web-proxy /usr/local/lib/wonton-agent/
+COPY --chmod=0755 gateway /usr/local/lib/wonton-agent/
 # Codex 对目录外的模型要求完整模型元数据：这份 prompt.md（Codex 上游对未知模型的
 # 兜底指令）由网关钩子写进 model_catalog_json 的 base_instructions，见 NOTICE。
 COPY prompt.md /usr/local/share/wonton-agent/prompt.md
