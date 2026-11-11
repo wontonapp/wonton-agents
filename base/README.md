@@ -77,8 +77,11 @@ command = ["/data/agent/tools/kimi/2.4.0/bin/kimi-acp"]   # 跟包里 package.js
 strip_ansi = true                  # 缺省 true
 ```
 
-npm 来源把包的 tgz 解到版本目录，再跑 `npm install --prefix <版本目录> --ignore-scripts`
-装依赖：不执行包里的安装脚本，闭源 CLI 的安装代码不碰容器其余部分。CLI 本体跟着包走，
+npm 来源把包的 tgz 解到版本目录，摘掉 `package.json` 的 `devDependencies` 再跑
+`npm install --prefix <版本目录> --ignore-scripts`
+装依赖：不执行包里的安装脚本，闭源 CLI 的安装代码不碰容器其余部分。摘掉
+`devDependencies` 是因为那是 CLI 仓库的构建期依赖，官方包常在这里引用未发布的内部包
+（npm 对它们 404），运行时也不需要；只装 `dependencies` 里的运行依赖。CLI 本体跟着包走，
 在包里 package.json 的 `bin` 字段指向的位置——多数 CLI 包是 `<版本目录>/bin/<命令>`，也有
 顶层入口（`<版本目录>/cli.js`）——`[acp] command` 按包的 bin 字段填。npm install 只把包
 声明的依赖装进 `<版本目录>/node_modules/`，不搬 CLI 自己。integrity 只核对顶层包，
@@ -184,6 +187,13 @@ ANTHROPIC_AUTH_TOKEN = "WONTON_MODEL_API_KEY"   # 子进程拿到 WONTON_MODEL_A
 ANTHROPIC_BASE_URL = "WONTON_MODEL_BASE_URL"
 ```
 
+## 登录网页的转发
+
+compose 模板里的 web 服务用 `/usr/local/lib/wonton-agent/web-proxy`（本目录的 `web-proxy`
+入口）把请求转给默认 Bot 的 agent 容器：webui 不能指向 Bot 服务（旧核心仍按这条判），而登录
+页在 agent 容器里。它只搬运字节，上游默认 `agent-default:8080`（可用 `WEB_UPSTREAM_HOST`、
+`WEB_UPSTREAM_PORT` 改），监听 `WEB_PORT`（默认 8080）。
+
 ## 子镜像怎么写
 
 ```dockerfile
@@ -256,8 +266,8 @@ docker run -d --name ab-echo-test -p 127.0.0.1::8080 ab-echo-agent:0.1.0
   登录 socket（lines / line_then_eof / 未知 id / 桥断开收进程 / 成功后入口退出）、
   登录网页（列表状态 / start→events / input / cancel / 串行拒绝 / 非 JSON 拒绝）。
   `python3 -m unittest discover -s base/tests -v`（在仓库根执行）
-- 长度检查：`python3 base/scripts/check-size.py`（每个 `.py` 和入口 ≤ 800 行、每个函数 ≤ 100 行，
-  超了退出 1）。仓库根的检查工作流（长度检查 + 测试 + 镜像构建）和发布流程都先跑它。
+- 长度检查：`python3 base/scripts/check-size.py`（每个 `.py` 和入口超过 800 行代码警告、超过 2000 行失败，
+  不算空行和注释；每个函数 ≤ 100 行；超了退出 1）。仓库根的检查工作流（长度检查 + 测试 + 镜像构建）和发布流程都先跑它。
 - 发布：推 `base/v<VERSION>` 的 tag，发布工作流先跑长度检查和测试，再出
   amd64+arm64 镜像，推 `ghcr.io/wontonapp/wonton-agent-base:<VERSION>`，版本号在本目录 `VERSION`，
   摘要写回 `DIGEST`。
