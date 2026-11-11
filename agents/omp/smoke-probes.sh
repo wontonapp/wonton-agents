@@ -7,8 +7,17 @@ export IDENTITY_NA=1
 export SMOKE_NOTE="omp 没有自己的用户体系；登录态存在 agent 容器的数据卷里。"
 
 # 数据探针把标记写进 agent 容器的数据卷（HOME，agent.db 和会话也在那里），验证重装不丢。
+# 核心给容器名带 Bot 后缀（--default），按前缀找。
+agent_container() {
+  docker ps --format '{{.Names}}' |
+    grep "^wonton-$SMOKE_INSTANCE--${SMOKE_PLUGIN_ID//./-}--agent" | head -1
+}
+
 agent_exec() {
-  docker exec "wonton-$SMOKE_INSTANCE--${SMOKE_PLUGIN_ID//./-}--agent" "$@"
+  local container
+  container="$(agent_container)" ||
+    { echo "找不到 agent 容器（wonton-$SMOKE_INSTANCE--${SMOKE_PLUGIN_ID//./-}--agent*）"; return 1; }
+  docker exec "$container" "$@"
 }
 
 data_write() {
