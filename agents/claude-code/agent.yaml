@@ -1,22 +1,23 @@
 id: ai.claude-code
 version: 0.1.0
-title: { zh: Claude Code, en: Claude Code }
+title: { zh: AI 编程助手（Claude Code）, en: Coding Bot (Claude Code) }
 description:
-  zh: Anthropic 的 Claude Code 编程 Agent，在聊天里按你的确认动手
-  en: Anthropic's Claude Code coding agent that acts in chat, asking before it acts
+  zh: Anthropic（Claude）家的编程助手：在聊天里帮你写代码、改文件、跑命令，动手前先弹卡片问你。适合已经有 Claude 付费订阅的人；模型设置不支持它时，要用 Pro 及以上订阅或自己的 key 登录。
+  en: "Anthropic's Claude as a coding bot: it writes code, edits files and runs commands from your chat, asking with a card before it acts. Good if you already pay for Claude — if your Models setup can't serve it, sign in with a Pro or higher plan or your own key."
 about:
   zh: |
-    Claude Code 以 Bot 的身份住进聊天，用它自己的 Anthropic 登录或 key。它住在自己的容器里，
-    改文件、跑命令之前经确认卡片问你；Wonton 插件的工具也从聊天里调。
+    Claude Code 是 Anthropic 家的编程 AI，住进你的聊天里：改文件、跑命令之前先弹确认卡片问你；
+    你装的应用提供的工具也能在聊天里用。可以走模型设置，也可以用你自己的 Anthropic 账号或 key
+    登录（下面细说）。
 
     接上模型网关（要提供 Anthropic Messages 接口）时默认走网关，不用账号。没接网关时，在插件页的登录
     网页（默认 Bot）或聊天里发 /wonton login（这个聊天对应的 Bot）登录：用 Claude 订阅或 Anthropic
     Console 登录（粘一次登录码），也可以贴一个自己的 Anthropic API key。订阅需要 Pro、Max、Ultra、
     Team 或 Enterprise；免费版不含 Claude Code。
   en: |
-    Claude Code lives in the chat as a bot, signed in with your own Anthropic account or key. It
-    works in its own container and asks through confirmation cards before editing files or running
-    commands; Wonton plugin tools are called from the chat too.
+    Claude Code is Anthropic's coding AI, living in your chat: it sends an approval request before
+    editing files or running commands, and the tools your apps provide work from the chat too. It
+    can use your Models setup or sign in with your own Anthropic account or key (details below).
 
     With a model gateway that speaks Anthropic Messages it goes through the gateway by default,
     with no account. Without one, sign in from the login page on the plugin screen (default bot)
