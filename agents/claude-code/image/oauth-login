@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""订阅 / Console 登录：CLI 里 API key 比订阅登录优先，先把本机存的 key 清掉，再跑 CLI 自己的 OAuth。
+
+链接打到 stdout，用户打开后在页面里拿到的 code 贴回 stdin（底座逐行转发）。参数是 claudeai 或 console。
+"""
+import os
+import sys
+
+sys.path.insert(0, "/usr/local/lib/wonton-agent")
+import agent_settings  # noqa: E402
+
+ADAPTER = "/data/agent/tools/claude-agent-acp/0.101.0/dist/index.js"
+KEY_FILE = os.path.expanduser("~/.claude/api-key")
+
+
+def drop_api_key() -> None:
+    if os.path.exists(KEY_FILE):
+        os.unlink(KEY_FILE)
+        print("已删掉存下的 API key，这次改用订阅登录")
+    data = agent_settings.load()
+    if data.get("apiKeyHelper") == agent_settings.API_KEY_HELPER:
+        del data["apiKeyHelper"]
+        agent_settings.save(data)
+
+
+def main() -> None:
+    flag = {"claudeai": "--claudeai", "console": "--console"}.get(sys.argv[1] if len(sys.argv) > 1 else "")
+    if flag is None:
+        sys.exit("用法：oauth-login claudeai|console")
+    drop_api_key()
+    sys.stdout.flush()
+    os.execvp("node", ["node", ADAPTER, "--cli", "auth", "login", flag])
+
+
+if __name__ == "__main__":
+    main()

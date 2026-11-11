@@ -1,0 +1,48 @@
+# Claude Code 的底座配置：ACP 适配器（Apache-2.0）在镜像里，它经 SDK 的可选依赖带闭源 Claude CLI
+# （约 340 MB，不可再分发），所以整棵适配器树首启从 npm 按摘要下载到数据卷。
+[[install]]
+name = "claude-agent-acp"
+version = "0.101.0"
+source = "npm"
+package = "@agentclientprotocol/claude-agent-acp"
+integrity = "sha512-c9YGBfdJrLcKiinRpXuDuibC+CRGqQpe9+ey/+TuuZ7ejHlVyEELbbvRkxHZN+Hf5XGecJD5i0kvP2opCseATA=="
+
+# Claude Code 自己读用户目录下的 CLAUDE.md 当记忆、~/.claude/skills 当 skill。
+[skills]
+target = "~/.claude/skills"
+
+[prompt]
+target = "~/.claude/CLAUDE.md"
+
+# 只讲 Anthropic Messages 的 Agent：网关钩子按 WONTON_MODEL_ANTHROPIC_BASE_URL 选路。
+[gateway]
+hook = "/usr/local/lib/wonton-agent/gateway"
+
+[acp]
+command = ["node", "/data/agent/tools/claude-agent-acp/0.101.0/dist/index.js"]
+# CLI 会用配色码画终端界面，桥自己也会剥；这里保持缺省。
+
+# 登录网页：0.0.0.0:8080，清单声明成 webui（核心网关挡着，只有主人打得开）。
+[web]
+port = 8080
+
+# 三种官方登录。适配器只认网关的 authenticate，终端登录一律由这里起命令；命令经 `--cli` 原样透传给 CLI。
+# 前两种会先清掉存下的 API key（它比订阅登录优先），再跑 CLI 自己的 OAuth。
+[[login]]
+id = "claudeai"
+name = "Claude 订阅（粘贴登录码）"
+command = ["/usr/local/lib/wonton-agent/oauth-login", "claudeai"]
+status = ["/usr/local/lib/wonton-agent/auth-status"]
+
+[[login]]
+id = "console"
+name = "Anthropic Console（API 计费）"
+command = ["/usr/local/lib/wonton-agent/oauth-login", "console"]
+status = ["/usr/local/lib/wonton-agent/auth-status"]
+
+# key 读一行写进 ~/.claude/api-key（0600），settings 里的 apiKeyHelper 指向读它的脚本，密钥不进日志。
+[[login]]
+id = "api-key"
+name = "Anthropic API key"
+command = ["/usr/local/lib/wonton-agent/api-key-login"]
+status = ["/usr/local/lib/wonton-agent/api-key-status"]
