@@ -1,5 +1,5 @@
 id: ai.claude-code
-version: 0.1.0
+version: 0.1.1
 title: { zh: AI 编程助手（Claude Code）, en: Coding Bot (Claude Code) }
 description:
   zh: Anthropic（Claude）家的编程助手：在聊天里帮你写代码、改文件、跑命令，动手前先弹卡片问你。适合已经有 Claude 付费订阅的人；模型设置不支持它时，要用 Pro 及以上订阅或自己的 key 登录。
@@ -25,8 +25,8 @@ about:
     Console (paste one login code), or paste your own Anthropic API key.
     Subscriptions need Pro, Max, Ultra, Team or Enterprise; the free plan has no Claude Code.
 release_notes:
-  zh: 插件搬进 wonton-agents 仓库，改用共用的底座镜像；对话、登录和确认卡片都和之前一样。
-  en: The plugin now lives in the wonton-agents repo on the shared base image; chat, sign-in and confirmation cards work as before.
+  zh: 说明改成更好懂的说法。
+  en: Clearer title and description.
 license: Apache-2.0
 notices: [NOTICE, image/LICENSE.claude-agent-acp, image/LICENSE.claude-code]
 homepage: https://github.com/agentclientprotocol/claude-agent-acp

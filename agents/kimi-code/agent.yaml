@@ -1,5 +1,5 @@
 id: ai.kimi-code
-version: 0.1.0
+version: 0.1.1
 title: { zh: AI 编程助手（Kimi Code）, en: Coding Bot (Kimi Code) }
 description:
   zh: Kimi（月之暗面）家的编程助手：先给你一份“打算怎么改”的方案，你同意了才动手改文件。直接用模型设置就行，也能用 Kimi 账号登录。
@@ -20,8 +20,8 @@ about:
     also log in with your own Kimi account (device code) or a Kimi Platform API key. The plugin
     page has a login web UI; /wonton login in chat works too.
 release_notes:
-  zh: 首个版本。
-  en: First version.
+  zh: 说明改成更好懂的说法。
+  en: Clearer title and description.
 license: MIT
 notices: [NOTICE]
 homepage: https://github.com/wontonapp/wonton-agents
