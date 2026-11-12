@@ -145,7 +145,7 @@ run() {
   local -a env=()
   while [[ "$1" != -- ]]; do env+=("$1"); shift; done
   shift
-  env "${env[@]}" PATH="$bin:$PATH" HOME="$work" WONTON_DEV_STATE="$state" \
+  env -u WONTON_PLUGIN "${env[@]}" PATH="$bin:$PATH" HOME="$work" WONTON_DEV_STATE="$state" \
     bash "$repo/scripts/dev.sh" "$@" >"$work/out" 2>"$work/err" || status=$?
   out="$(cat "$work/out")"
   err="$(cat "$work/err")"
