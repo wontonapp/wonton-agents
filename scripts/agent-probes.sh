@@ -13,10 +13,15 @@
 #     agent_check_outsider
 #   }
 #
+# 按 Agent 的行为选参数：agent_check_mcp_chat card（调 MCP 工具前也要确认）、agent_check_card <服务>（只读命令
+# 不出卡片，改成在工作区建文件、看那个服务容器里的文件）。有登录的 Agent 再加 agent_check_login <方式[,方式…]> <正则…>、
+# agent_check_login_web <方式…>、agent_check_login_redact。
+#
 # 扮演手机的两个验收工具是核心仓库 deploy/dev/core/Dockerfile 的 tunnel-client、echo-bot 两个构建目标，由调用方
 # 给镜像：WONTON_SMOKE_TUNNEL_CLIENT_IMAGE、WONTON_SMOKE_ECHO_BOT_IMAGE。没给时要手机的子项记 N/A 并写原因。
 # WONTON_SMOKE_CURL_IMAGE 只用来经手机的隧道代理取 Matrix 登录令牌。
 # 要模型回答的子项（模型能回话、经聊天调工具、确认卡片、打断、续聊）要先接模型上游（WONTON_DEV_MODEL_*），没接时记 N/A。
+# 等模型回答默认 240 秒，慢的 Agent 在探针里设 AGENT_WAIT（秒）。
 # 只要 Bot 回了话就算数的（加密私聊、名单外不应答）不要模型：没有模型时 Bot 回的报错也是一条加密回复。
 
 : "${WONTON_SMOKE_CURL_IMAGE:=curlimages/curl:8.23.0}"
@@ -81,7 +86,7 @@ agent_say() {
     --max-time 60 -x http://127.0.0.1:18008 -U "$AGENT_CREDENTIAL" -H "Authorization: Bearer $SMOKE_TOKEN" \
     -X POST "http://$AGENT_HOST:$AGENT_PORT/_wonton/matrix/login-token" | jq -r '.token // empty')"
   [[ -n "$token" ]] || { echo "拿不到用户的 Matrix 登录令牌"; return 1; }
-  timeout "${AGENT_SAY_TIMEOUT:-360}" docker run --rm --network "container:$AGENT_PHONE" \
+  timeout "${AGENT_SAY_TIMEOUT:-$(( ${AGENT_WAIT:-240} + 120 ))}" docker run --rm --network "container:$AGENT_PHONE" \
     "$WONTON_SMOKE_ECHO_BOT_IMAGE" probe --homeserver "http://matrix.$AGENT_HOST:$AGENT_PORT" \
     --proxy "http://$AGENT_CREDENTIAL@127.0.0.1:18008" --login-token "$token" \
     --room "$AGENT_ROOM" --bot "$AGENT_BOT" "$@"
@@ -111,7 +116,7 @@ agent_tail() { tail -c "${2:-200}" <<<"$1" | tr '\n' ' '; }
 agent_check_chat() { # [文字]：首次安装后加密私聊收发
   local out
   agent_need 加密私聊 || return 0
-  if out="$(agent_say --reply any --settle 15 --wait 240 --text "${1:-请用一句话回答：冒烟。}" 2>&1)"; then
+  if out="$(agent_say --reply any --settle 15 --wait "${AGENT_WAIT:-240}" --text "${1:-请用一句话回答：冒烟。}" 2>&1)"; then
     extra_item PASS 加密私聊 "用户的新设备发加密消息，收到 Bot 的加密回复"
   else
     extra_item FAIL 加密私聊 "没收到 Bot 的加密回复：$(agent_tail "$out")"
@@ -123,7 +128,7 @@ agent_check_chat() { # [文字]：首次安装后加密私聊收发
 agent_check_model() {
   local out rc=0
   agent_need 模型能回话 model || return 0
-  out="$(agent_say --reply any --wait 240 --text '请只回答：模型验收通过。' 2>&1)" || rc=$?
+  out="$(agent_say --reply any --wait "${AGENT_WAIT:-240}" --text '请只回答：模型验收通过。' 2>&1)" || rc=$?
   printf '%s\n' "$out"
   if ((rc == 0)) && ! grep -Eiq 'model was not found|couldn.t finish|could not finish|provider-error|⚠️' <<<"$out"; then
     extra_item PASS 模型能回话 "经模型网关回答了（上游模型 ${WONTON_DEV_MODEL:-}）"
@@ -146,27 +151,41 @@ agent_check_mcp_bus() {
   fi
 }
 
-# Agent 自己经总线调工具：让它列已装的插件，回答里要有核心预装的模型网关。
+# Agent 自己经总线调工具：让它列已装的插件，回答里要有核心预装的模型网关。[card]：这家 Agent 调 MCP 工具前
+# 也要用户确认（如 Claude Code 的 default 模式），同时等那张卡片并同意，卡片没出现记 FAIL。
 agent_check_mcp_chat() {
-  local out rc=0
+  local file bg rc=0
   agent_need MCP工具 model || return 0
-  out="$(agent_say --reply any --settle 10 --wait 240 \
-    --text '用 wonton__list_plugins 列出已装的插件，一个一行，不要解释。' 2>&1)" || rc=$?
-  printf '%s\n' "$out"
-  if ((rc == 0)) && grep -q 'ai.usemagpie.magpie' <<<"$out"; then
+  file="$(agent_tmp)"
+  agent_say --reply any --settle 10 --wait "${AGENT_WAIT:-240}" \
+    --text '用 wonton__list_plugins 列出已装的插件，输出每项的 id（形如 xxx.yyy.zzz），一个一行，不要解释。' >"$file" 2>&1 &
+  bg=$!
+  if [[ "${1:-}" == card ]]; then
+    if agent_card_answer approve list_plugins >&2; then
+      agent_cards_until "$bg" approve list_plugins >/dev/null
+      extra_item PASS MCP工具 "Agent 调 MCP 工具前出了确认卡片，同意了"
+    else
+      extra_item FAIL MCP工具 "Agent 调 MCP 工具前等不到确认卡片"
+    fi
+  fi
+  wait "$bg" || rc=$?
+  cat "$file"
+  if ((rc == 0)) && grep -q 'ai.usemagpie.magpie' "$file"; then
     extra_item PASS MCP工具 "Agent 在聊天里调了 wonton__list_plugins，回答里有预装的模型网关"
   else
-    extra_item FAIL MCP工具 "Agent 没在聊天里调成 wonton__list_plugins：$(agent_tail "$out")"
+    extra_item FAIL MCP工具 "Agent 没在聊天里调成 wonton__list_plugins：$(agent_tail "$(cat "$file")")"
   fi
+  rm -f "$file"
 }
 
-# 等一张标题里含 <文字> 的确认卡片，按 <approve|reject> 回答；卡片没出现返回 1。选项带 choice_id 的
+# 等一张标题、说明或参数里含 <文字> 的确认卡片，按 <approve|reject> 回答，最多等 [秒数]（默认 120）；卡片没出现返回 1。选项带 choice_id 的
 # （ACP 的权限卡）要把那个选项自己的 answer 和 choice_id 一起发回去。
 agent_card_answer() {
   local want="$1" needle="$2" list id body
-  for _ in $(seq 1 120); do
+  for _ in $(seq 1 "${3:-120}"); do
     list="$(smoke_api GET /_wonton/api/confirmations 2>/dev/null)" || list='{}'
-    id="$(jq -r --arg n "$needle" '[.confirmations[]? | select(.title | contains($n)) | .id][0] // empty' <<<"$list")"
+    id="$(jq -r --arg n "$needle" '[.confirmations[]? | select(((.title // "") + " " + (.description // "") + " "
+      + ((.arguments // {}) | tostring)) | contains($n)) | .id][0] // empty' <<<"$list")"
     if [[ -n "$id" ]]; then
       body="$(jq -c --arg id "$id" --arg a "$want" '[.confirmations[] | select(.id == $id) | .choices[]?
         | select(((.answer // .kind) // "") | startswith($a))][0] // {} | {answer: (.answer // $a)}
@@ -180,30 +199,61 @@ agent_card_answer() {
   return 1
 }
 
-# 确认卡片：让 Agent 用 shell 跑命令，卡片同意一次（输出回到聊天）、拒绝一次（命令没跑，Agent 如实说）。
+# <进程> 还在跑时一直按 <approve|reject> 回答含 <文字> 的卡片（有的 Agent 一个动作弹好几张）。输出回答了几张。
+agent_cards_until() { # <进程> <approve|reject> <文字>
+  local n=0
+  while kill -0 "$1" 2>/dev/null; do
+    agent_card_answer "$2" "$3" 2 >&2 && n=$((n + 1))
+  done
+  echo "$n"
+}
+
+# 确认卡片：同意一次（命令跑了），拒绝一次（命令没跑）。不给参数时让 Agent 用 shell 跑 echo，看聊天里的输出
+# 和回答。[服务]：这家 Agent 只在写工作区时才问（只读命令不出卡片，如 Codex 的 read-only、Claude Code 的 default），
+# 改成让它在 /workspace 里 touch 一个文件，以那个服务容器里文件在不在为准：模型有时不等执行结果就先回话，
+# 拒绝后这一轮也可能直接结束、聊天里没有回答。
 agent_check_card() {
-  local file bg
+  local file bg svc="${1:-}" container ask_ok ask_no
   agent_need 确认卡片 model || return 0
+  if [[ -n "$svc" ]]; then
+    container="$(running_container "wonton-$SMOKE_INSTANCE--$SMOKE_SLUG--$svc")" ||
+      { extra_item FAIL 确认卡片 "找不到服务 $svc 在跑的容器"; return 0; }
+    docker exec "$container" rm -f /workspace/card-ok /workspace/card-no >/dev/null 2>&1 || true
+    ask_ok='用 touch 在 /workspace 里创建文件 card-ok，然后只回答：建好了。'
+    ask_no='用 touch 在 /workspace 里创建文件 card-no，然后只回答：建好了。'
+  else
+    ask_ok='用 shell 跑一条命令：echo card-ok，然后只说命令输出。'
+    ask_no='再用 shell 跑一条命令：echo card-no，然后只说结果。'
+  fi
   file="$(agent_tmp)"
-  agent_say --reply any --wait 240 --text '用 shell 跑一条命令：echo card-ok，然后只说命令输出。' >"$file" 2>&1 &
+  agent_say --reply any --wait "${AGENT_WAIT:-240}" --text "$ask_ok" >"$file" 2>&1 &
   bg=$!
-  if agent_card_answer approve 'echo card-ok'; then
+  if agent_card_answer approve card-ok >&2; then
+    agent_cards_until "$bg" approve card-ok >/dev/null
     wait "$bg"
-    if grep -q 'card-ok' "$file"; then
-      extra_item PASS 确认卡片 "跑命令前出了确认卡片，同意后命令的输出回到聊天"
+    if agent_card_ran "$container" card-ok "$file"; then
+      extra_item PASS 确认卡片 "跑命令前出了确认卡片，同意后命令跑了${svc:+（$svc 里有 card-ok）}"
     else
-      extra_item FAIL 确认卡片 "同意了卡片，聊天里没等到命令输出：$(agent_tail "$(cat "$file")")"
+      extra_item FAIL 确认卡片 "同意了卡片，等不到命令跑完：$(agent_tail "$(cat "$file")")"
     fi
   else
     kill "$bg" 2>/dev/null; wait "$bg"
     extra_item FAIL 确认卡片 "让 Agent 跑命令，等不到确认卡片：$(agent_tail "$(cat "$file")")"
   fi
   cat "$file"
-  agent_say --reply any --wait 240 --text '再用 shell 跑一条命令：echo card-no，然后只说结果。' >"$file" 2>&1 &
+  agent_say --reply any --wait "$([[ -n "$svc" ]] && echo 30 || echo 240)" --text "$ask_no" >"$file" 2>&1 &
   bg=$!
-  if agent_card_answer reject 'echo card-no'; then
+  if agent_card_answer reject card-no >&2; then
+    agent_cards_until "$bg" reject card-no >/dev/null
     wait "$bg"
-    if grep -qxE ' *card-no *' "$file" || ! grep -Eiq '拒绝|没(有)?执行|未执行|denied|rejected|cancel' "$file"; then
+    sleep 5
+    if [[ -n "$svc" ]]; then
+      if docker exec "$container" test -e /workspace/card-no; then
+        extra_item FAIL 确认卡片 "拒绝了卡片，$svc 里还是有 card-no"
+      else
+        extra_item PASS 确认卡片 "拒绝卡片后命令没跑（$svc 里没有 card-no）"
+      fi
+    elif grep -qxE ' *card-no *' "$file" || ! grep -Eiq '拒绝|没(有)?执行|未执行|denied|rejected|cancel' "$file"; then
       extra_item FAIL 确认卡片 "拒绝了卡片，回答看不出命令没跑：$(agent_tail "$(cat "$file")")"
     else
       extra_item PASS 确认卡片 "拒绝卡片后命令没跑，Agent 如实说了"
@@ -214,6 +264,20 @@ agent_check_card() {
   fi
   cat "$file"
   rm -f "$file"
+  [[ -z "$svc" ]] || docker exec "$container" rm -f /workspace/card-ok >/dev/null 2>&1 || true
+}
+
+# 同意之后命令跑了没有：<容器>（空 = 看聊天）<文件名> <聊天记录>。看容器时等 20 秒文件出现。
+agent_card_ran() {
+  if [[ -z "$1" ]]; then
+    grep -q "$2" "$3"
+    return
+  fi
+  for _ in $(seq 1 20); do
+    docker exec "$1" test -e "/workspace/$2" 2>/dev/null && return 0
+    sleep 1
+  done
+  return 1
 }
 
 # 打断：先交一个要跑很久的活，再从另一台设备发 /wonton interrupt，新的一轮要能回答。
@@ -221,9 +285,10 @@ agent_check_interrupt() {
   local file bg out rc=0
   agent_need 打断 model || return 0
   file="$(agent_tmp)"
-  agent_say --reply any --wait 240 --text '先用 shell 跑 sleep 45，跑完只回答一句：数完了。' >"$file" 2>&1 &
+  agent_say --reply any --wait "${AGENT_WAIT:-240}" --text '先用 shell 跑 sleep 45，跑完只回答一句：数完了。' >"$file" 2>&1 &
   bg=$!
-  sleep 8
+  # 跑 sleep 也要确认的 Agent 会先弹卡片：4 秒内出了就同意（让它真的跑起来再打断），没出就再等 4 秒。
+  agent_card_answer approve sleep 4 >&2 || sleep 4
   out="$(agent_say --reply any --wait 180 --settle 20 --text '/wonton interrupt 只回答一句：打断好了。' 2>&1)" || rc=$?
   wait "$bg"
   cat "$file"
@@ -236,8 +301,8 @@ agent_check_interrupt() {
   fi
 }
 
-agent_wait_healthy() { # <容器>：最多等 3 分钟
-  for _ in $(seq 1 90); do
+agent_wait_healthy() { # <容器>：最多等 AGENT_HEALTHY_WAIT 秒（默认 180）
+  for _ in $(seq 1 "$(( ${AGENT_HEALTHY_WAIT:-180} / 2 ))"); do
     [[ "$(docker inspect "$1" --format '{{.State.Health.Status}}' 2>/dev/null)" == healthy ]] && return 0
     sleep 2
   done
@@ -258,7 +323,7 @@ agent_check_restart() {
     agent_wait_healthy "$container" || bad="$bad $container"
   done
   if [[ -n "$bad" ]]; then
-    extra_item FAIL 重启后还能聊 "重启后 3 分钟没回到 healthy：$bad"
+    extra_item FAIL 重启后还能聊 "重启后 ${AGENT_HEALTHY_WAIT:-180} 秒没回到 healthy：$bad"
   else
     extra_item PASS 重启后还能聊 "$* 重启后重新 healthy"
   fi
@@ -268,13 +333,84 @@ agent_check_restart() {
 agent_check_resume() { # <暗号>
   local out rc=0
   agent_need 续聊 model || return 0
-  out="$(agent_say --reply any --wait 240 --text '我们第一次说话时留的暗号是什么？只回答暗号。' 2>&1)" || rc=$?
+  # 只认含暗号的那条：桥的提示（如话题冲突）可能抢在模型的回答前到。
+  out="$(agent_say --reply any --match "$1" --wait "${AGENT_WAIT:-240}" --text '我们第一次说话时留的暗号是什么？只回答暗号。' 2>&1)" || rc=$?
   printf '%s\n' "$out"
   if ((rc == 0)) && grep -qF "$1" <<<"$out"; then
     extra_item PASS 续聊 "同一个会话记得第一条消息里的暗号"
   else
     extra_item FAIL 续聊 "问不回暗号 $1：$(agent_tail "$out")"
   fi
+}
+
+# 聊天登录：/wonton login 要列出 <方式>（逗号分隔的几种都要在，发起第一种）；发起后聊天里每个 <正则> 都要命中
+# （链接、设备码或输入提示），到此为止，不真登录；再 /wonton login cancel 回到待命。这些都是桥自己回的，不要模型。
+agent_check_login() { # <方式[,方式…]> <正则…>
+  local methods method out m re missing
+  IFS=, read -ra methods <<<"$1"
+  method="${methods[0]}"
+  agent_need 登录方式 || return 0
+  out="$(agent_say --reply any --settle 10 --wait 60 --text '/wonton login' 2>&1)"
+  printf '%s\n' "$out"
+  for m in "${methods[@]}"; do
+    grep -qF "/wonton login $m" <<<"$out" ||
+      { extra_item FAIL 登录方式 "/wonton login 的回答里没有 $m：$(agent_tail "$out")"; return 0; }
+  done
+  extra_item PASS 登录方式 "聊天里列出登录方式 ${methods[*]}"
+  out="$(agent_say --reply any --settle 10 --wait 90 --text "/wonton login $method" 2>&1)"
+  printf '%s\n' "$out"
+  missing=""
+  for re in "${@:2}"; do
+    grep -Eq "$re" <<<"$out" || missing="$missing $re"
+  done
+  if [[ -z "$missing" ]]; then
+    extra_item PASS 登录链接 "发起 $method 后聊天里出现了登录链接或输入提示（到这为止，不真登录）"
+  else
+    extra_item FAIL 登录链接 "发起 $method 后聊天里没有$missing：$(agent_tail "$out")"
+  fi
+  out="$(agent_say --reply any --settle 10 --wait 60 --text '/wonton login cancel' 2>&1)"
+  printf '%s\n' "$out"
+  if grep -q '登录已取消' <<<"$out"; then
+    extra_item PASS 登录取消 "取消登录，回到待命"
+  else
+    extra_item FAIL 登录取消 "取消登录没确认：$(agent_tail "$out")"
+  fi
+}
+
+# 登录网页（插件的网页入口，用户会话）的 /api/logins 列出的方式 id 正好是 <方式…>（不计顺序）。
+agent_check_login_web() { # <方式…>
+  local out want
+  want="$(printf '%s\n' "$@" | jq -Rsc 'split("\n") | map(select(. != "")) | sort')"
+  if [[ -z "${SMOKE_WEB_URL:-}" ]]; then
+    extra_item FAIL 登录网页 "没有网页入口（清单的 webui）"
+  elif ! out="$(web_get /api/logins 2>&1)"; then
+    extra_item FAIL 登录网页 "登录网页的 /api/logins 请求失败：$(agent_tail "$out")"
+  elif jq -e --argjson w "$want" '([.logins[].id] | sort) == $w' <<<"$out" >/dev/null 2>&1; then
+    extra_item PASS 登录网页 "登录网页列出 $*"
+  else
+    extra_item FAIL 登录网页 "登录网页列出的方式不是 $*：$(agent_tail "$out")"
+  fi
+}
+
+# 登录密钥撤回：/wonton login api-key 后在聊天里贴一个假 key，桥转交给 Agent 后要撤回那条消息，服务器上的
+# content 是空对象。贴完取消登录。
+agent_check_login_redact() {
+  local out
+  agent_need 登录密钥撤回 || return 0
+  out="$(agent_say --reply any --settle 10 --wait 60 --text '/wonton login api-key' 2>&1)"
+  printf '%s\n' "$out"
+  if ! grep -Eiq 'api key|api-key|key' <<<"$out"; then
+    extra_item FAIL 登录密钥撤回 "/wonton login api-key 没回出输入提示：$(agent_tail "$out")"
+    return 0
+  fi
+  out="$(agent_say --reply any --wait 30 --print-event-id 1 --redacted 60 --text "sk-smoke-$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')" 2>&1)"
+  printf '%s\n' "$out"
+  if grep -q '已撤回：content={}' <<<"$out"; then
+    extra_item PASS 登录密钥撤回 "桥撤回了贴 key 的消息，服务器上的 content 是空对象"
+  else
+    extra_item FAIL 登录密钥撤回 "贴 key 的消息没撤回：$(agent_tail "$out")"
+  fi
+  agent_say --reply any --settle 10 --wait 60 --text '/wonton login cancel' 2>&1
 }
 
 # Matrix 客户端接口：<令牌> <方法> <路径> [JSON 正文]，在核心容器里发（同 probes_matrix），正文只用 ASCII。
@@ -284,6 +420,8 @@ agent_matrix() {
 
 # 名单外不应答：Bot 只听名单里的人。名单外的临时用户在主房间里发一条，30 秒内 Bot 不许回；踢掉他以后用户在
 # 同一个房间发一条，Bot 必须回：说明 Bot 在收这个房间的消息，前一条是看到了不答，不是没在跑。
+# [silent]：只断言名单外的人得不到回答，不做踢人后的对照（有的桥在有人进出房间后换 Megolm 会话，之后新登录的
+# 探针设备解不开回话；“Bot 在听且会回用户”由别的子项承担）。
 # 临时用户用 Matrix 服务器的注册共享密钥建；邀请、踢人、读消息用用户本人的身份（管理接口代登录，用完退出），
 # 不碰 Bot 的令牌。
 agent_check_outsider() {
@@ -333,10 +471,14 @@ agent_check_outsider() {
     extra_item FAIL 名单外不应答 "名单外的人（$outsider）发消息后 Bot 回了 ${seen:-?} 条"
     return 0
   fi
+  if [[ "${1:-}" == silent ]]; then
+    extra_item PASS 名单外不应答 "名单外的人发消息 30 秒没有回答（不做同一房间的对照）"
+    return 0
+  fi
   sleep 10
   expect="名单内通过"
   [[ -n "${WONTON_DEV_MODEL_BASE_URL:-}" ]] || expect=""
-  out="$(agent_say --reply any --settle 15 --wait 240 --mention "$AGENT_BOT" \
+  out="$(agent_say --reply any --settle 15 --wait "${AGENT_WAIT:-240}" --mention "$AGENT_BOT" \
     --text '同一个房间里的对照：请只回答 名单内通过' 2>&1)" || rc=$?
   printf '%s\n' "$out"
   if ((rc == 0)) && grep -qF "$expect" <<<"$out"; then
