@@ -65,6 +65,7 @@ services:
     volumes:
       - ${WONTON_BOT_DATA}/bridge:/data/bridge
       - ${WONTON_BOT_DATA}/run:/data/run
+      - ${WONTON_BOT_DATA}/workspace:/workspace
     healthcheck:
       test: ["CMD", "test", "-S", "/data/run/acp.sock"]
       interval: 30s

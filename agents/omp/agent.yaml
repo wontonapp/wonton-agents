@@ -1,5 +1,5 @@
 id: ai.omp.agent
-version: 0.1.4
+version: 0.1.5
 title: { zh: AI 编程助手（omp）, en: Coding Bot (omp) }
 description:
   zh: 自带工具很全的编程助手（做计划、记性好、读得懂代码结构）：先列计划再动手，跑命令前弹卡片问你。直接用模型设置就行，也能用它自己的方式登录模型账号。
@@ -22,8 +22,8 @@ about:
     cards before running commands; Wonton plugin tools are called from the chat.
     The chat is an encrypted direct message the core creates, and it carries on after a restart.
 release_notes:
-  zh: 改为随 wonton-agents 仓库的公共底座发版；接网关、登录和用法不变。
-  en: Now released from the wonton-agents monorepo on the shared base; gateway, sign-in and usage are unchanged.
+  zh: AI 正忙时你接着发的消息会直接递给它，不用等这一轮做完；能收图片和文件。
+  en: Messages you send while the AI is busy now reach it right away instead of waiting for the turn to end; it can take images and files.
 license: MIT
 notices: [NOTICE, image/LICENSE.omp]
 homepage: https://omp.sh

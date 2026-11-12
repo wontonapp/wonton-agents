@@ -1,5 +1,5 @@
 id: ai.echo
-version: 0.1.1
+version: 0.1.2
 title: { zh: Bot 样例（Echo）, en: Sample Bot (Echo) }
 description:
   zh: 给开发者参考的样品：你说什么它就回什么，不会真的帮你做事。
@@ -23,8 +23,8 @@ about:
     With a model gateway it goes through the gateway (the sample hook just logs the model name);
     the sample login accepts any key. It talks to no upstream service; for demos and testing only.
 release_notes:
-  zh: 说明改成更好懂的说法。
-  en: Clearer title and description.
+  zh: 能收图片和文件；正忙时接着发的几条消息，做完这一轮后合成一条处理。
+  en: Takes images and files; messages sent while busy are combined into one after the current turn.
 license: Apache-2.0
 notices: [NOTICE]
 homepage: https://github.com/wontonapp/wonton-agents
