@@ -87,10 +87,10 @@ x-wonton:
   id: ai.codex
   version: 0.1.0
   kind: agent
-  title: { zh: Codex, en: Codex }
+  title: { zh: AI 编程助手（Codex）, en: Coding Bot (Codex) }
   description:
-    zh: OpenAI 的 Codex 编程 Agent，在聊天里按你的确认动手
-    en: OpenAI's Codex coding agent that acts in chat, asking before it acts
+    zh: OpenAI（ChatGPT）家的编程助手：在聊天里帮你写代码、改文件、跑命令，规矩最严——默认只能看，要改动前都先弹卡片问你。直接用模型设置就行，也能登录 ChatGPT 订阅。
+    en: "OpenAI's coding bot, from the makers of ChatGPT: it writes code, edits files and runs commands from your chat under the strictest rules — read-only by default, asking with a card before any change. Works with your Models setup, or sign in with a ChatGPT plan."
   icon: icon.svg
   notices: [NOTICE]
   author: { name: Wonton plugin authors }
@@ -99,20 +99,17 @@ x-wonton:
   tags: { zh: [AI, 开发], en: [AI, Development] }
   about:
     zh: |
-      OpenAI Codex 以 Bot 的身份住进聊天：模型网关接好时默认走网关，不用账号，也不用填任何 key。
-      它住在自己的容器里，用只读沙箱工作，改文件、跑会出沙箱的命令之前经确认卡片问你；
-      Wonton 插件的工具也从聊天里调。没接网关时，在聊天里发 /wonton login：用设备码登录
-      ChatGPT 订阅，或贴一个自己的 OpenAI API key。Codex CLI 和 ACP 适配器在第一次启动时
-      从官方 npm 源下载，不打进镜像。
+      OpenAI 家的编程 AI（ChatGPT 同门），住进你的聊天里：默认用模型设置里配好的 AI，不用账号、
+      不用填 key；没配好时在聊天里发 /wonton login，用设备码登录 ChatGPT 订阅，或贴上自己的
+      OpenAI key。它规矩最严：平时只能看不能改，要改文件、跑会越界的命令之前都先弹确认卡片问你；
+      你装的应用提供的工具也能在聊天里用。第一次启动时会自动下载官方程序，稍等一下就好。
     en: |
-      OpenAI Codex lives in the chat as a bot: when the model gateway is connected it goes
-      through the gateway by default, with no account and no key to fill in. It works in its
-      own container under a read-only sandbox and asks through confirmation cards before
-      editing files or running commands outside it; Wonton plugin tools are called from the
-      chat too. Without the gateway, send /wonton login in the chat: sign in to a ChatGPT
-      subscription with a device code, or paste your own OpenAI API key. The Codex CLI and
-      its ACP adapter are downloaded from the official npm registry on first start, not
-      baked into the image.
+      OpenAI's coding AI (from the makers of ChatGPT), living in your chat: by default it uses the
+      AI set up in Models — no account, no key. Without that, send /wonton login in the chat to
+      sign in to a ChatGPT plan with a device code, or paste your own OpenAI key. It works under
+      the strictest rules: read-only by default, sending an approval request before editing files
+      or running commands that reach outside; the tools your apps provide work from the chat too.
+      The first start downloads the official program, so give it a moment.
   release_notes:
     zh: 首个版本。
     en: First version.
@@ -128,7 +125,7 @@ x-wonton:
       - id: api-key
         title: { zh: OpenAI API key, en: OpenAI API key }
   bot:
-    display_name: { zh: Codex, en: Codex }
+    display_name: { zh: AI 编程助手（Codex）, en: Coding Bot (Codex) }
   bots:
     services: [agent, bridge]
   permissions:

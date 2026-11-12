@@ -1,20 +1,20 @@
 id: ai.kimi-code
 version: 0.1.0
-title: { zh: Kimi Code, en: Kimi Code }
+title: { zh: AI 编程助手（Kimi Code）, en: Coding Bot (Kimi Code) }
 description:
-  zh: Moonshot AI 的 Kimi Code 命令行编码 Agent，经 ACP 接入聊天
-  en: Moonshot AI's Kimi Code CLI coding agent, wired to chat over ACP
+  zh: Kimi（月之暗面）家的编程助手：先给你一份“打算怎么改”的方案，你同意了才动手改文件。直接用模型设置就行，也能用 Kimi 账号登录。
+  en: "Kimi's coding bot from Moonshot AI: it first shows you a plan of what it will change and edits only after you agree. Works with your Models setup, or sign in with a Kimi account."
 about:
   zh: |
-    Kimi Code 是 Moonshot AI 的命令行编码 Agent。装进 Wonton 后，Bot 在和你的私聊里干活：
-    读代码、改文件、跑命令，默认 plan 模式只读不动手，改文件前先把方案说给你。
+    Kimi Code 是月之暗面（Kimi）家的编程 AI。装进云吞后，它在和你的私聊里干活：读代码、改文件、
+    跑命令；默认只看不动——先给你一份“打算怎么改”的方案，你同意了才真正改文件。
 
     模型默认走 Wonton 的模型网关，不用自己的账号；也可以用自己的 Kimi 账号（设备码登录）
     或 Kimi 开放平台的 API key。插件页有登录网页，聊天里 /wonton login 也行。
   en: |
-    Kimi Code is Moonshot AI's CLI coding agent. Inside Wonton the bot works in your private
-    chat: reads code, edits files and runs commands. It starts in plan mode (read-only) and
-    proposes before touching files.
+    Kimi Code is Moonshot AI's coding AI. In Wonton it works in your private chat: it reads
+    code, edits files and runs commands. By default it looks before it touches — it shows you
+    a plan of what it will change and edits only after you agree.
 
     Model requests go through the Wonton model gateway by default, no account needed; you can
     also log in with your own Kimi account (device code) or a Kimi Platform API key. The plugin

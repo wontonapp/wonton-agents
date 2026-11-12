@@ -10,8 +10,9 @@ Anthropic 的 Claude Code 编程 Agent，经官方 ACP 适配器（`@agentclient
 - `agent.yaml`：清单来源（id、版本、商店文字、登录方式、`acp_mode`、内存、环境变量），`docker-compose.yml` 由 `gen/` 生成
 - `image/agent.toml` + `image/Dockerfile`：子镜像的全部差异（装哪个 CLI、ACP 怎么启动、网关钩子、登录）
 - `image/gateway`：把 `WONTON_MODEL_*` 写进 Claude Code 的用户设置 `env`（`apply`），`clear` 按备份还原；密钥落盘的文件 0600
-- `image/oauth-login`、`auth-status`、`api-key-login`、`api-key`、`api-key-status`：三种终端登录
-- `image/web-proxy`：登录网页的转发（模板里 `web` 服务的入口）
+- `image/oauth-login`、`auth-status`、`api-key-login`、`api-key`、`api-key-status`：三种终端登录；
+  `auth-status` 区分网关 token 和真 OAuth——网关接着时订阅/Console 如实显示「没登录」
+  （模型调用走网关），凭据库里存了真 OAuth（`~/.claude/.credentials.json` 的 `claudeAiOauth`）才算已登录
 - `smoke-probes.sh`：冒烟探针
 
 模型有两个来源，每次容器启动时选定：接上模型网关（要提供 Anthropic Messages 接口）时默认走网关，

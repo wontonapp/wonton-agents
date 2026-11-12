@@ -85,10 +85,10 @@ x-wonton:
   id: ai.echo
   version: 0.1.0
   kind: agent
-  title: { zh: Echo, en: Echo }
+  title: { zh: Bot 样例（Echo）, en: Sample Bot (Echo) }
   description:
-    zh: 最小样例 Agent，收到什么回什么；当「新增一家」的底稿用
-    en: Minimal sample agent that echoes prompts back; the starting point for adding an agent
+    zh: 给开发者参考的样品：你说什么它就回什么，不会真的帮你做事。
+    en: "A sample for developers: it repeats whatever you send and does nothing else."
   icon: icon.svg
   notices: [NOTICE]
   author: { name: Wonton plugin authors }
@@ -97,7 +97,7 @@ x-wonton:
   tags: { zh: [AI, 工具], en: [AI, Tools] }
   about:
     zh: |
-      Echo 是本仓库的最小样例：底座加一份 agent.toml 就能跑，收到什么回什么。
+      Echo 是给开发者看的示范：装上就能跑，你说什么它回什么。
 
       把它当「新增一家」的底稿：复制本目录，改 agent.yaml、agent.toml、图标和 NOTICE，跑
       python3 gen/gen.py 重新生成 compose，再接上真实 CLI 的启动命令、网关钩子和登录。
@@ -105,8 +105,7 @@ x-wonton:
       接上模型网关时走网关（样例钩子只把模型名写进日志）；也可以用样例登录（任意一行 key）。
       它不连任何上游服务，只用来演示和联调。
     en: |
-      Echo is this repo's minimal sample: the base image plus one agent.toml is enough, and it
-      echoes every prompt back.
+      Echo is a sample for developers: it runs as-is and echoes back whatever you send.
 
       Treat it as the starting point for adding an agent: copy this directory, change agent.yaml,
       agent.toml, the icon and NOTICE, regenerate the compose with python3 gen/gen.py, then wire
@@ -127,7 +126,7 @@ x-wonton:
       - id: sample
         title: { zh: 样例账号（读一行 key）, en: Sample account (paste one key) }
   bot:
-    display_name: { zh: Echo, en: Echo }
+    display_name: { zh: Bot 样例（Echo）, en: Sample Bot (Echo) }
   bots:
     services: [agent, bridge]
   permissions:

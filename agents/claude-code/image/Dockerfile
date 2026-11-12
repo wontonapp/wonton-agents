@@ -1,9 +1,10 @@
 # Claude Code 子镜像：ACP 适配器（Apache-2.0）随镜像发布；它带的闭源 Claude CLI（约 340 MB）由底座
 # 首次启动按 agent.toml 的 [[install]] 从 npm 下载到数据卷。入口是底座的 wonton-agent，这里只放配置。
-FROM ghcr.io/wontonapp/wonton-agent-base:0.1.0@sha256:5cba94459910395888a969190420492bd58f88a2928a2f8f9a7deb8b849519e9
+# 登录网页的转发器（web-proxy）随底座。
+FROM ghcr.io/wontonapp/wonton-agent-base:0.1.1@sha256:1f66748aa0f30bae92496fabd35bebc35d9fb965762096b876a4b45c1ad2cab2
 
 COPY agent.toml /etc/wonton-agent/
-COPY --chmod=0755 gateway oauth-login auth-status api-key-login api-key api-key-status web-proxy /usr/local/lib/wonton-agent/
+COPY --chmod=0755 gateway oauth-login auth-status api-key-login api-key api-key-status /usr/local/lib/wonton-agent/
 COPY agent_settings.py /usr/local/lib/wonton-agent/
 COPY prompt.md /usr/local/share/wonton-agent/prompt.md
 # 托管设置：对话框后面没有 ToolSearch 的一轮，MCP 工具直接进工具表。
