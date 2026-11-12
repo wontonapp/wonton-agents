@@ -96,3 +96,23 @@ jobs:
         run: docker build -t "wonton-agent-${AGENT}:ci" -f "agents/${AGENT}/image/Dockerfile" "agents/${AGENT}/image"
         env:
           AGENT: ${{ matrix.agent }}
+
+  # 必需检查只设这个汇总作业：agent 矩阵按改动生成，检查名不固定，规则集没法逐个列。
+  summary:
+    name: check 汇总
+    needs: [changed, base, shared, agent]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RESULTS: ${{ join(needs.*.result, ' ') }}
+    steps:
+      - name: 各作业的结果
+        run: |
+          echo "$RESULTS"
+          for result in $RESULTS; do
+            case "$result" in
+              success|skipped) ;;
+              *) exit 1 ;;
+            esac
+          done
