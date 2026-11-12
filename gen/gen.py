@@ -5,6 +5,10 @@
 
     python3 gen/gen.py [--check] [agents/<id> …]    # 不给目录就是 agents/ 下全部
 
+发版时 publish.sh 把 compose 里自身镜像的 image 行改写成 <仓库>:<版本>@sha256:<摘要> 提交回 main；
+gen 把和清单版本一致的摘要原样带上（agent 和 web 引用同一个镜像），发版后的 --check 才能过。
+版本一换旧摘要作废：生成不带摘要的新标签，等下一次发布再写。
+
 agent.yaml 的字段（例子见 agents/echo/agent.yaml）：
 
     必填  id version title description about release_notes license notices homepage acp_mode memory
@@ -188,11 +192,43 @@ def render(agent: dict, name: str, compose_text: str, web_text: str) -> str:
     return "\n".join(lines)
 
 
+def self_image_digest(agent_dir: Path, agent: dict) -> str:
+    """compose 里发布写回的自身镜像摘要（publish.sh 的 pin_image 写的）：和清单版本一致才带进生成结果。
+    版本不一致的是发旧版本时的旧摘要，丢掉；同版本出现两种摘要说明 compose 被手改过，报错不猜。"""
+    path = agent_dir / COMPOSE_NAME
+    if not path.exists():
+        return ""
+    digest = ""
+    # 匹配规则和 publish.sh 的 pin_image 一致：逐行扫 image 行。
+    line = re.compile(rf"^\s*image:\s*(?:&\S+\s+)?\S+/{re.escape(agent_dir.name)}"
+                      rf":{re.escape(str(agent['version']))}@(sha256:[0-9a-f]{{64}})(\s*(?:#.*)?)$")
+    for text_line in path.read_text(encoding="utf-8").split("\n"):
+        match = line.match(text_line)
+        if not match:
+            continue
+        if digest and match.group(1) != digest:
+            fail(f"{path}: 版本 {agent['version']} 的自身镜像摘要有两种（{digest} 和 {match.group(1)}）,"
+                 f"删到只剩发布写回的那个")
+        digest = match.group(1)
+    return digest
+
+
 def render_compose(agent_dir: Path, agent: dict) -> str:
     compose_text = (TEMPLATE_DIR / "compose.yml").read_text(encoding="utf-8")
     web_path = TEMPLATE_DIR / "web-service.yml"
     web_text = web_path.read_text(encoding="utf-8") if web_path.exists() else ""
-    return render(agent, agent_dir.name, compose_text, web_text)
+    text = render(agent, agent_dir.name, compose_text, web_text)
+    digest = self_image_digest(agent_dir, agent)
+    if not digest:
+        return text
+    # 匹配规则和 publish.sh 的 pin_image 一致，行尾注释和 YAML 锚点也照它保留。
+    pattern = re.compile(rf"^(\s*image:\s*(?:&\S+\s+)?)(\S+/{re.escape(agent_dir.name)}"
+                         rf":{re.escape(str(agent['version']))})(\s*(?:#.*)?)$")
+    pinned = []
+    for line in text.split("\n"):
+        match = pattern.match(line)
+        pinned.append(f"{match.group(1)}{match.group(2)}@{digest}{match.group(3)}" if match else line)
+    return "\n".join(pinned)
 
 
 def agent_dirs(paths: list[str]) -> list[Path]:

@@ -3,10 +3,12 @@
 跑法（仓库根）：python3 -m unittest discover -s gen/tests -v
 """
 
+import re
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import yaml
 
@@ -32,6 +34,9 @@ class ClaudeCodeTest(unittest.TestCase):
     def test_services_match_handwritten(self):
         got = parse(self.output)["services"]
         expected = parse((self.fixture / "compose.expected.yml").read_text(encoding="utf-8"))["services"]
+        # 桥镜像的版本跟着 template/ 升级，不属生成逻辑；摘要钉住由 test_bridge_digest_from_template 管。
+        for services in (got, expected):
+            services["bridge"]["image"] = "<bridge image>"
         self.assertEqual(got, expected)
 
     def test_x_wonton_matches_handwritten(self):
@@ -122,6 +127,82 @@ class CommittedTest(unittest.TestCase):
         agent = gen.load_agent(agent_dir)
         committed = (agent_dir / gen.COMPOSE_NAME).read_text(encoding="utf-8")
         self.assertEqual(gen.render_compose(agent_dir, agent), committed)
+
+
+def pin_like_publish(text: str, name: str, version: str, digest: str) -> str:
+    """按 publish.sh pin_image 的规则逐行把自身镜像行改写成 <仓库>:<版本>@<摘要>，模拟发布写回。"""
+    line = re.compile(rf"^(\s*image:\s*(?:&\S+\s+)?)(\S+/{name})(?::[^@\s]+)?"
+                      rf"(?:@sha256:[0-9a-f]{{64}})?(\s*(?:#.*)?)$")
+    return "\n".join(f"{m.group(1)}{m.group(2)}:{version}@{digest}{m.group(3)}"
+                     if (m := line.match(text_line)) else text_line
+                     for text_line in text.split("\n"))
+
+
+class PinTest(unittest.TestCase):
+    """发布写回的摘要：同版本保留（发版后 --check 仍过），版本一换旧摘要不残留。"""
+
+    DIGEST_A = "sha256:" + "a1" * 32
+    DIGEST_B = "sha256:" + "b2" * 32
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.agent_dir = Path(self.tmp.name) / "mini"
+        self.agent_dir.mkdir()
+        self.write_agent("version: 0.2.0")
+        self.fresh = gen.render_compose(self.agent_dir, gen.load_agent(self.agent_dir))
+        self.write_compose(self.fresh)
+
+    def write_agent(self, version_line: str):
+        text = (FIXTURES / "claude-code" / "agent.yaml").read_text(encoding="utf-8")
+        # fixture 自带 webui: true：compose 里有两处自身镜像（agent 和 web），和 dsh 一样。
+        text = re.sub(r"^version: .*$", version_line, text, count=1, flags=re.M)
+        (self.agent_dir / "agent.yaml").write_text(text, encoding="utf-8")
+
+    def write_compose(self, text: str):
+        (self.agent_dir / gen.COMPOSE_NAME).write_text(text, encoding="utf-8")
+
+    def self_image_lines(self, text: str) -> list[str]:
+        return [line for line in text.split("\n") if re.match(r"^\s*image:\s*\S+/mini:", line)]
+
+    def test_publish_writeback_still_fresh(self):
+        self.write_compose(pin_like_publish(self.fresh, "mini", "0.2.0", self.DIGEST_A))
+        agent = gen.load_agent(self.agent_dir)
+        output = gen.render_compose(self.agent_dir, agent)
+        self.assertEqual(output, (self.agent_dir / gen.COMPOSE_NAME).read_text(encoding="utf-8"))
+        # agent 和 web 两处都钉上。
+        self.assertEqual(output.count("@" + self.DIGEST_A), 2)
+        with mock.patch("sys.argv", ["gen.py", "--check", str(self.agent_dir)]):
+            gen.main()
+
+    def test_unrelated_edit_keeps_digest(self):
+        self.write_compose(pin_like_publish(self.fresh, "mini", "0.2.0", self.DIGEST_A))
+        # 发版后改标题这类无关字段，重新生成不丢摘要。
+        text = (self.agent_dir / "agent.yaml").read_text(encoding="utf-8")
+        (self.agent_dir / "agent.yaml").write_text(
+            text.replace("zh: Claude Code", "zh: Claude Code 改名", 1), encoding="utf-8")
+        output = gen.render_compose(self.agent_dir, gen.load_agent(self.agent_dir))
+        self.assertEqual(output.count("@" + self.DIGEST_A), 2)
+
+    def test_version_bump_drops_stale_digest(self):
+        self.write_compose(pin_like_publish(self.fresh, "mini", "0.2.0", self.DIGEST_A))
+        self.write_agent("version: 0.3.0")
+        output = gen.render_compose(self.agent_dir, gen.load_agent(self.agent_dir))
+        lines = self.self_image_lines(output)
+        self.assertEqual(len(lines), 2)
+        for line in lines:
+            self.assertTrue(line.strip().endswith("/mini:0.3.0"), line)
+            self.assertNotIn("@sha256:", line)
+        # 重新写盘后再生成也稳定，--check 过。
+        self.write_compose(output)
+        with mock.patch("sys.argv", ["gen.py", "--check", str(self.agent_dir)]):
+            gen.main()
+
+    def test_conflicting_digests_rejected(self):
+        text = pin_like_publish(self.fresh, "mini", "0.2.0", self.DIGEST_A)
+        self.write_compose(text.replace(self.DIGEST_A, self.DIGEST_B, 1))
+        with self.assertRaises(SystemExit):
+            gen.render_compose(self.agent_dir, gen.load_agent(self.agent_dir))
 
 
 class CheckTest(unittest.TestCase):
