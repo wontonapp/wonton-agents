@@ -10,8 +10,9 @@
   权限是放开一切（`Agent.Info` 的缺省 ruleset 是 allow-all，只对读 `.env` 先问），plan 模式的
   「只读」是 agent 自己的规则；本插件的网关钩子把 `edit`、`shell` 显式写成 `ask`，所以 plan 和
   build 两种模式下改文件、跑命令都会出确认卡片（实测：plan 下 write 触发
-  `session/request_permission`，`allow_once` 后文件落盘）。话题会话用 `acp_topic_mode: build`，
-  改前先问的语义一致。
+  `session/request_permission`，`allow_once` 后文件落盘）。话题会话跟随主会话模式：清单原本配的
+  `acp_topic_mode: build` 不在桥的模式白名单里（桥会因它启动失败），0.1.2 起去掉该字段，主、
+  话题会话同为 plan，改前先问的语义一致。
 - **只放行 Wonton MCP 的配置键**：`opencode.json` 的 `permissions` 里
   `{"action": "wonton_*", "resource": "*", "effect": "allow"}`。桥按会话把核心的 MCP 入口作为
   HTTP 服务器传进 `session/new` 的 `mcpServers`（opencode 只收 http/stdin 两类，实测收到

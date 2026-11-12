@@ -76,7 +76,7 @@ license: MIT
 notices: [NOTICE, LICENSE]
 homepage: https://example.com
 acp_mode: read-only
-acp_topic_mode: workspace-write
+acp_topic_mode: plan
 memory: 1G
 env:
   PLAIN: hello world
@@ -91,7 +91,7 @@ permissions: [storage.docs:read]
     def test_topic_mode_reaches_bridge(self):
         env = self.data["services"]["bridge"]["environment"]
         self.assertEqual(env["WONTON_ACP_MODE"], "read-only")
-        self.assertEqual(env["WONTON_ACP_TOPIC_MODE"], "workspace-write")
+        self.assertEqual(env["WONTON_ACP_TOPIC_MODE"], "plan")
 
     def test_env_values_stay_strings(self):
         env = self.data["services"]["agent"]["environment"]

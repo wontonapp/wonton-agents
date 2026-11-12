@@ -1,32 +1,32 @@
 id: ai.kimi-code
-version: 0.1.2
+version: 0.1.3
 title: { zh: AI 编程助手（Kimi Code）, en: Coding Bot (Kimi Code) }
 description:
-  zh: Kimi（月之暗面）家的编程助手：先给你一份“打算怎么改”的方案，你同意了才动手改文件。直接用模型设置就行，也能用 Kimi 账号登录。
-  en: "Kimi's coding bot from Moonshot AI: it first shows you a plan of what it will change and edits only after you agree. Works with your Models setup, or sign in with a Kimi account."
+  zh: Kimi（月之暗面）家的编程助手：读代码、改文件、跑命令，改文件和跑命令前都会出确认卡，你同意才执行。直接用模型设置就行，也能用 Kimi 账号登录。
+  en: "Kimi's coding bot from Moonshot AI: it reads code, edits files and runs commands, asking with a confirmation card before edits and commands. Works with your Models setup, or sign in with a Kimi account."
 about:
   zh: |
     Kimi Code 是月之暗面（Kimi）家的编程 AI。装进云吞后，它在和你的私聊里干活：读代码、改文件、
-    跑命令；默认只看不动——先给你一份“打算怎么改”的方案，你同意了才真正改文件。
+    跑命令；改文件和跑命令前都会出确认卡，你同意才执行。
 
     模型默认走 Wonton 的模型网关，不用自己的账号；也可以用自己的 Kimi 账号（设备码登录）
     或 Kimi 开放平台的 API key。插件页有登录网页，聊天里 /wonton login 也行。
   en: |
     Kimi Code is Moonshot AI's coding AI. In Wonton it works in your private chat: it reads
-    code, edits files and runs commands. By default it looks before it touches — it shows you
-    a plan of what it will change and edits only after you agree.
+    code, edits files and runs commands, asking with a confirmation card before edits and
+    commands.
 
     Model requests go through the Wonton model gateway by default, no account needed; you can
     also log in with your own Kimi account (device code) or a Kimi Platform API key. The plugin
     page has a login web UI; /wonton login in chat works too.
 release_notes:
-  zh: AI 正忙时你接着发的几条消息，等它这一轮做完会合成一条交给它；能收图片和文件。
-  en: Messages you send while the AI is busy are combined into one and handed over when the current turn ends; it can take images and files.
+  zh: 修正会话模式：之前处于只读的 plan 模式，改文件、跑命令都不执行；现在改文件、跑命令前会先出确认卡征求同意。
+  en: "Fixed the session mode: it used to be read-only plan, where edits and commands never ran; it now asks with a confirmation card before edits and commands."
 license: MIT
 notices: [NOTICE]
 homepage: https://github.com/wontonapp/wonton-agents
 tags: { zh: [AI, 工具], en: [AI, Tools] }
-acp_mode: plan
+acp_mode: default
 memory: 512M
 login:
   - id: kimi-account

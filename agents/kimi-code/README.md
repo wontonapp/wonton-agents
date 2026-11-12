@@ -29,7 +29,8 @@ Moonshot AI 的 [Kimi Code CLI](https://github.com/MoonshotAI/kimi-code)（npm �
   "mode"`）通告，取值 `default`/`plan`/`auto`/`yolo`，桥用 `session/set_config_option` 切。
   `plan` 下不执行任何工具：让它写 `/workspace/hello.txt`，会话正常应答，文件没有创建。
   `default` 模式下动文件、跑命令出 ACP 权限卡（`approve_once`/`approve_always`/`reject`），
-  由桥转成核心确认卡。
+  由桥转成核心确认卡。清单 `acp_mode` 从 0.1.3 起用 `default`（0.1.2 配过 `plan`，上游
+  plan 语义=不执行任何工具，与插件说明承诺的确认卡不符）。
 - **只放行 Wonton MCP 的配置键**：`[[permission.rules]]`，`decision = "allow"`，
   `pattern = "mcp__wonton__*"`（桥传进来的服务器名是 `wonton`，工具名前缀 `mcp__wonton__`）。
   注意：2.5.3 的运行时不读配置里的规则（上游 `permissionRulesService` 不接 user 配置，
