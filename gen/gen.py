@@ -47,7 +47,7 @@ BOOL_WORDS = {"y", "Y", "yes", "Yes", "YES", "n", "N", "no", "No", "NO",
 NUM_RE = re.compile(r"^(?:[-+]?[0-9][0-9_]*|[-+]?[0-9]*\.[0-9_]+(?:[eE][-+]?[0-9]+)?"
                     r"|[-+]?0[xXoObB][0-9a-fA-F_]+|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$")
 # 桥启动就校验 WONTON_ACP_MODE（清单 acp_mode 经 compose 注入桥），名单外的值桥直接退、插件装不上；
-# 名单照抄主仓库 crates/wonton-acp-bridge/src/config.rs 的 ALLOWED_MODES，桥改名单时同步这里。
+# 名单照抄主仓库桥 config.rs 里的 ALLOWED_MODES，桥改名单时同步这里。
 ACP_MODES = ("default", "plan", "acceptEdits", "read-only", "auto")
 
 
