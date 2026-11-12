@@ -24,11 +24,14 @@ RUN set -eu \
     && mkdir -p /opt/codex-acp \
     && tar -xzf /tmp/codex-acp.tgz -C /opt/codex-acp --strip-components=1 \
     && rm /tmp/codex-acp.tgz
-RUN npm install --prefix /opt/codex-acp --ignore-scripts --no-audit --no-fund --loglevel=error \
-    --fetch-retries 8 --fetch-retry-maxtimeout 90000 --fetch-timeout 600000 \
-    && test -d /opt/codex-acp/node_modules/@openai/codex-linux-x64 \
-    && test -x /opt/codex-acp/node_modules/@openai/codex-linux-x64/vendor/*/bin/codex
 # 平台包是 optionalDependencies：npm 装失败不报错，codex.js 运行时才炸，必须在构建期拦住。
+# npm 的平台后缀（x64/arm64）跟 buildx 的 TARGETARCH（amd64/arm64）不同名：amd64 要写成 x64。
+ARG TARGETARCH
+RUN set -eu; case "$TARGETARCH" in amd64) platform=x64;; *) platform="$TARGETARCH";; esac; \
+    npm install --prefix /opt/codex-acp --ignore-scripts --no-audit --no-fund --loglevel=error \
+    --fetch-retries 8 --fetch-retry-maxtimeout 90000 --fetch-timeout 600000 \
+    && test -d "/opt/codex-acp/node_modules/@openai/codex-linux-$platform" \
+    && test -x "/opt/codex-acp/node_modules/@openai/codex-linux-$platform"/vendor/*/bin/codex
 USER 65532:65532
 
 COPY agent.toml /etc/wonton-agent/
