@@ -22,6 +22,7 @@
 # WONTON_SMOKE_CURL_IMAGE 只用来经手机的隧道代理取 Matrix 登录令牌。
 # 要模型回答的子项（模型能回话、经聊天调工具、确认卡片、打断、续聊）要先接模型上游（WONTON_DEV_MODEL_*），没接时记 N/A。
 # 等模型回答默认 240 秒，慢的 Agent 在探针里设 AGENT_WAIT（秒）。
+# 等确认卡片默认 120 秒，卡片出得慢的 Agent 在探针里设 AGENT_CARD_WAIT（秒）；要模型先想才出卡的给到 300 以上。
 # 只要 Bot 回了话就算数的（加密私聊、名单外不应答）不要模型：没有模型时 Bot 回的报错也是一条加密回复。
 
 : "${WONTON_SMOKE_CURL_IMAGE:=curlimages/curl:8.23.0}"
@@ -178,11 +179,11 @@ agent_check_mcp_chat() {
   rm -f "$file"
 }
 
-# 等一张标题、说明或参数里含 <文字> 的确认卡片，按 <approve|reject> 回答，最多等 [秒数]（默认 120）；卡片没出现返回 1。选项带 choice_id 的
-# （ACP 的权限卡）要把那个选项自己的 answer 和 choice_id 一起发回去。
+# 等一张标题、说明或参数里含 <文字> 的确认卡片，按 <approve|reject> 回答，最多等 [秒数]（默认 AGENT_CARD_WAIT 或 120 秒）；卡片没出现返回 1。
+# 选项带 choice_id 的（ACP 的权限卡）要把那个选项自己的 answer 和 choice_id 一起发回去。
 agent_card_answer() {
   local want="$1" needle="$2" list id body
-  for _ in $(seq 1 "${3:-120}"); do
+  for _ in $(seq 1 "${3:-${AGENT_CARD_WAIT:-120}}"); do
     list="$(smoke_api GET /_wonton/api/confirmations 2>/dev/null)" || list='{}'
     id="$(jq -r --arg n "$needle" '[.confirmations[]? | select(((.title // "") + " " + (.description // "") + " "
       + ((.arguments // {}) | tostring)) | contains($n)) | .id][0] // empty' <<<"$list")"
@@ -418,14 +419,16 @@ agent_matrix() {
   MATRIX_TOKEN="$1" probes_matrix "${@:2}"
 }
 
-# 名单外不应答：Bot 只听名单里的人。名单外的临时用户在主房间里发一条，30 秒内 Bot 不许回；踢掉他以后用户在
+# 名单外不应答：Bot 只听名单里的人。名单外的临时用户在主房间里发一条，<等待秒>（默认 30）内 Bot 不许回；模型慢、
+# 上一轮还没说完的 Agent 给长一点；踢掉他以后用户在
 # 同一个房间发一条，Bot 必须回：说明 Bot 在收这个房间的消息，前一条是看到了不答，不是没在跑。
 # [silent]：只断言名单外的人得不到回答，不做踢人后的对照（有的桥在有人进出房间后换 Megolm 会话，之后新登录的
 # 探针设备解不开回话；“Bot 在听且会回用户”由别的子项承担）。
 # 临时用户用 Matrix 服务器的注册共享密钥建；邀请、踢人、读消息用用户本人的身份（管理接口代登录，用完退出），
 # 不碰 Bot 的令牌。
-agent_check_outsider() {
+agent_check_outsider() { # [silent] [等多少秒，默认 30]
   local admin owner owner_token secret nonce pass name mac reg outsider outsider_token room_url since seen out rc=0 expect
+  local wait="${2:-30}"
   agent_need 名单外不应答 || return 0
   admin="$(docker exec "$SMOKE_CORE" cat "$SMOKE_DATA_DIR/core/matrix-admin-token")" ||
     { extra_item FAIL 名单外不应答 "读不到核心的 Matrix 管理令牌"; return 0; }
@@ -458,7 +461,7 @@ agent_check_outsider() {
   agent_matrix "$outsider_token" PUT "/_matrix/client/v3/rooms/$room_url/send/m.room.message/smoke-outsider-$since" \
     "$(jq -cn --arg b "$AGENT_BOT" '{msgtype: "m.text", body: "outsider smoke: please reply", "m.mentions": {user_ids: [$b]}}')" |
     jq -e '.event_id' >/dev/null || { extra_item FAIL 名单外不应答 "名单外的人发不出消息"; return 0; }
-  sleep 30
+  sleep "$wait"
   seen="$(agent_matrix "$owner_token" GET "/_matrix/client/v3/rooms/$room_url/messages?dir=b&limit=100" |
     jq --arg b "$AGENT_BOT" --argjson t "$since" '[.chunk[]? | select(.sender == $b and (.origin_server_ts // 0) >= $t
       and (.type == "m.room.message" or .type == "m.room.encrypted"))] | length')"
@@ -482,7 +485,7 @@ agent_check_outsider() {
     --text '同一个房间里的对照：请只回答 名单内通过' 2>&1)" || rc=$?
   printf '%s\n' "$out"
   if ((rc == 0)) && grep -qF "$expect" <<<"$out"; then
-    extra_item PASS 名单外不应答 "名单外的人发消息 30 秒没有回答，用户随后在同一房间得到回答"
+    extra_item PASS 名单外不应答 "名单外的人发消息 $wait 秒没有回答，用户随后在同一房间得到回答"
   else
     extra_item FAIL 名单外不应答 "名单外的人没得到回答，但用户随后在同一房间也没得到回答：$(agent_tail "$out")"
   fi

@@ -110,6 +110,8 @@ probes_load() { # 读插件的探针；探针里可用的变量和助手在 prob
   MCP_TOOL=""
   MCP_ARGS='{}'
   SMOKE_NOTE=""
+  # shellcheck disable=SC2034 # smoke.sh 读，探针在 smoke-probes.sh 里覆盖
+  SMOKE_SETTINGS=()
   export WONTON_OWNER_EMAIL="${WONTON_OWNER_EMAIL:-$default_owner_email}"
   if [[ -f "$(probes_file)" ]]; then
     # shellcheck source=scripts/smoke-probes.sh

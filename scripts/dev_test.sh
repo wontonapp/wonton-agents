@@ -124,7 +124,13 @@ PY
     ;;
   */upgrade*)
     [[ -n "${FAKE_HIT_FILE:-}" ]] && printf 'POST %s\n' "$url" >>"$FAKE_HIT_FILE"
+    for arg in "$@"; do
+      [[ "$arg" != Wonton-Plugin-Settings:* ]] || printf '%s\n' "${arg#*: }" >"${FAKE_HEADER_FILE:?}"
+    done
     cat "${FAKE_RESULT_FILE:?}"
+    ;;
+  */settings)
+    cat "${FAKE_STORED_FILE:?}"
     ;;
   */_wonton/api/models/custom-provider)
     printf '%s\n' "$*" >"${FAKE_ARGS_FILE:?}"
@@ -255,6 +261,36 @@ has "$err" "装不了：这台主机缺 GPU" "blocked 要拦住升级"
 # 接口挂了：报错退出。
 run 1 FAKE_API=fail -- upgrade --yes || true
 has "$err" "预览失败" "接口挂了要报错"
+
+# --setting：按预览里的表单定类型，经 Wonton-Plugin-Settings 头（base64url JSON）上行，装完核对存下了。
+# eula 是装着时同意过的必填项（预览带着值），players 是带默认值的整数，mode 是单选。
+form='"settings":{"fields":[
+  {"name":"eula","title":"同意","required":true,"kind":{"type":"toggle"},"value":{"type":"flag","value":true},"default":null},
+  {"name":"players","title":"人数","required":false,"kind":{"type":"integer","min":1,"max":100},"value":null,"default":{"type":"integer","value":20}},
+  {"name":"mode","title":"模式","required":false,"kind":{"type":"choice","multiple":false,"options":[{"value":{"type":"text","value":"easy"},"title":"简单"}]},"value":null,"default":null}]}'
+printf '%s\n' "{\"title\":\"示例\",\"id\":\"com.example.app\",\"version\":\"1.2.4\",\"permissions\":[],\"notices\":[],\"blocked\":null,$form}" >"$work/settings-preview.json"
+sed 's/"value":{"type":"flag","value":true}/"value":null/' "$work/settings-preview.json" >"$work/unset-preview.json"
+stored() { # <players 存着的值>
+  printf '{"schema_digest":"sha256:x","form":{"fields":[{"name":"players","title":"人数","required":false,"kind":{"type":"integer"},"value":{"type":"integer","value":%s}},{"name":"mode","title":"模式","required":false,"kind":{"type":"text"},"value":{"type":"text","value":"easy"}}]}}\n' "$1" >"$work/stored.json"
+}
+stored 5
+export FAKE_HEADER_FILE="$work/header" FAKE_STORED_FILE="$work/stored.json"
+run 0 "FAKE_PREVIEW_FILE=$work/settings-preview.json" -- upgrade --yes --setting players=5 --setting mode=easy || true
+has "$out" "升级好了" "带设置值升级"
+has "$(python3 -c 'import base64,sys; v=sys.argv[1]; print(base64.urlsafe_b64decode(v + "=" * (-len(v) % 4)).decode())' "$(cat "$work/header")")" \
+  '{"players": {"type": "integer", "value": 5}, "mode": {"type": "text", "value": "easy"}}' "按表单的类型编码设置值"
+run 1 "FAKE_PREVIEW_FILE=$work/settings-preview.json" -- upgrade --yes --setting nope=1 || true
+has "$err" "这个插件没有设置 nope" "不认识的设置要报错"
+run 1 "FAKE_PREVIEW_FILE=$work/settings-preview.json" -- upgrade --yes --setting players=many || true
+has "$err" "设置 players 要整数" "类型不对要报错"
+run 1 "FAKE_PREVIEW_FILE=$work/settings-preview.json" -- upgrade --yes --setting mode=hard || true
+has "$err" "设置 mode 只能取这些值：easy" "选项外的值要报错"
+run 1 "FAKE_PREVIEW_FILE=$work/unset-preview.json" -- upgrade --yes || true
+has "$err" "必填的设置没有值：eula" "必填项没值要在发请求前报错"
+# 核心不认识这个头时照装、不存值：要报出来，不能当装好了。
+stored 20
+run 1 "FAKE_PREVIEW_FILE=$work/settings-preview.json" -- upgrade --yes --setting players=5 || true
+has "$err" "核心没存下给的设置值" "值没存下要报错"
 
 # model：key 只经标准输入进请求体，不出现在 curl 的参数和 dev.sh 的输出里。
 printf 'sk-test-only-1234\n' >"$work/model.key"
