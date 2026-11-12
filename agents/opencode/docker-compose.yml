@@ -53,7 +53,7 @@ services:
       WONTON_MATRIX_HOME_ROOM: ${WONTON_MATRIX_HOME_ROOM:?需要主人与 Bot 的主房间}
       WONTON_MCP_URL: ${WONTON_MCP_URL:?需要 MCP 总线地址}
       # 主会话的 ACP 模式；话题会话要更严的「改前先问」模式时，在 agent.yaml 配 acp_topic_mode。
-      WONTON_ACP_MODE: default
+      WONTON_ACP_MODE: plan
     volumes:
       - ${WONTON_BOT_DATA}/bridge:/data/bridge
       - ${WONTON_BOT_DATA}/run:/data/run
@@ -89,8 +89,8 @@ x-wonton:
   kind: agent
   title: { zh: AI 编程助手（OpenCode）, en: Coding Bot (OpenCode) }
   description:
-    zh: 开源、不绑定哪一家的编程助手：主聊天里只出主意，任务聊天里才动手，改动前先弹卡片问你。直接用模型设置就行，也能用 OpenCode 自家的模型服务。
-    en: "An open-source coding bot not tied to any one AI company: in the main chat it only advises, in task chats it gets to work, always asking with a card before changes. Works with your Models setup, or OpenCode's own model service."
+    zh: 开源、不绑定哪一家的编程助手：读代码、改文件、跑命令，改动前先弹卡片问你。直接用模型设置就行，也能用 OpenCode 自家的模型服务。
+    en: "An open-source coding bot not tied to any one AI company: it reads code, edits files and runs commands, always asking with a card before changes. Works with your Models setup, or OpenCode's own model service."
   icon: icon.svg
   notices: [NOTICE]
   author: { name: Wonton plugin authors }
@@ -101,8 +101,8 @@ x-wonton:
     zh: |
       OpenCode 是开源的编程 AI。装好后用它的官方程序干活（第一次启动时自动下载，稍等一下）；默认用模型
       设置里配好的 AI（配好后自动接上，不用登录）；想用 OpenCode 自家的模型服务，在聊天里发 /wonton
-      login，或在登录网页里贴上自己的 OpenCode key。它改文件、跑命令之前都会先弹确认卡片问你；主聊天里
-      它默认只出主意、不动文件，任务聊天里才动手。
+      login，或在登录网页里贴上自己的 OpenCode key。主聊天和任务聊天里改文件、跑命令之前都会先弹
+      确认卡片问你。
 
       模型默认走云吞的模型网关（网关就绪后自动接上，不需要登录）；想用 OpenCode 自己的模型服务时，
       在聊天里发 /wonton login，或在插件的登录网页里粘贴 OpenCode 的 API key。
@@ -113,16 +113,15 @@ x-wonton:
       OpenCode is an open-source coding AI. It runs the official program (downloaded automatically on
       first start, so give it a moment); by default it uses the AI set up in Models (connected
       automatically once ready, no sign-in). To use OpenCode's own model service, send /wonton login
-      in the chat or paste your OpenCode key on the sign-in page. It sends an approval request before
-      editing files or running commands; in the main chat it only advises and touches nothing, and
-      task chats are where it works.
+      in the chat or paste your OpenCode key on the sign-in page. In both the main chat and task
+      chats it sends an approval request before editing files or running commands.
 
       Models go through the Wonton model gateway by default (connected automatically once the gateway is
       ready, no login needed); to use OpenCode's own model service instead, send /wonton login in chat or
       paste your OpenCode API key on the plugin's login page.
 
-      OpenCode edits files and runs commands: the main session starts in plan mode (read-only, edits are
-      refused) and topic sessions in build mode, where edits and commands ask first via confirmation cards.
+      OpenCode edits files and runs commands: the main session runs in plan mode and topic sessions
+      follow it, so edits and commands always ask first via confirmation cards.
   release_notes:
     zh: AI 正忙时你接着发的消息会直接递给它，不用等这一轮做完；能收图片和文件。
     en: Messages you send while the AI is busy now reach it right away instead of waiting for the turn to end; it can take images and files.

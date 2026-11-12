@@ -113,8 +113,8 @@ x-wonton:
       also log in with your own Kimi account (device code) or a Kimi Platform API key. The plugin
       page has a login web UI; /wonton login in chat works too.
   release_notes:
-    zh: AI 正忙时你接着发的几条消息，等它这一轮做完会合成一条交给它；能收图片和文件。
-    en: Messages you send while the AI is busy are combined into one and handed over when the current turn ends; it can take images and files.
+    zh: 修正会话模式：之前处于只读的 plan 模式，改文件、跑命令都不执行；现在改文件、跑命令前会先出确认卡征求同意。
+    en: "Fixed the session mode: it used to be read-only plan, where edits and commands never ran; it now asks with a confirmation card before edits and commands."
   webui:
     service: web
     port: 8080
