@@ -125,9 +125,6 @@ def load_agent(agent_dir: Path) -> dict:
     if data["acp_mode"] not in ACP_MODES:
         fail(f"{path}: acp_mode {data['acp_mode']!r} 不在桥的白名单 {list(ACP_MODES)} 里"
              f"（config.rs 的 ALLOWED_MODES），装机会在桥启动时退")
-    if "acp_topic_mode" in data and data["acp_topic_mode"] not in ACP_MODES:
-        fail(f"{path}: acp_topic_mode {data['acp_topic_mode']!r} 不在桥的白名单 {list(ACP_MODES)} 里，"
-             f"装机会在桥启动时退")
     for entry in data.get("login") or []:
         if (not isinstance(entry, dict) or set(entry) != {"id", "title"}
                 or not LOGIN_ID_RE.match(str(entry.get("id", "")))):
