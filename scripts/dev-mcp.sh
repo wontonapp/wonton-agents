@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# shellcheck disable=SC2154 # root、instance 由 dev.sh 加载设置。
+# shellcheck disable=SC2154 # root、plugin、instance 由 dev.sh 加载设置。
 # 由 dev.sh 加载，直连插件网络时复用已有的 MCP 客户端。
 mcp_direct() {
   local sub="$1" facts endpoint id service url container network image client gw
