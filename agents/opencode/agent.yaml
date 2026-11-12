@@ -37,8 +37,7 @@ license: MIT
 notices: [NOTICE]
 homepage: https://github.com/wontonapp/wonton-agents
 tags: { zh: [AI, 工具], en: [AI, Tools] }
-acp_mode: plan
-acp_topic_mode: build
+acp_mode: default
 memory: 512M
 login:
   - id: opencode
