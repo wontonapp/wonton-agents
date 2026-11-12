@@ -26,7 +26,7 @@ license: MIT
 notices: [NOTICE, image/LICENSE.dsh]
 homepage: https://github.com/deepseek-ai/deepseek-harness
 tags: { zh: [AI, 开发], en: [AI, Development] }
-acp_mode: workspace-write
+acp_mode: default
 memory: 1G
 env:
   # dsh 的凭据（~/.dsh/.credentials.yaml）、会话和 acp profile 补丁都放在 HOME 下的 .dsh/，数据卷里，容器重建不丢。

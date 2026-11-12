@@ -46,6 +46,9 @@ BOOL_WORDS = {"y", "Y", "yes", "Yes", "YES", "n", "N", "no", "No", "NO",
               "on", "On", "ON", "off", "Off", "OFF", "null", "Null", "NULL", "~", ""}
 NUM_RE = re.compile(r"^(?:[-+]?[0-9][0-9_]*|[-+]?[0-9]*\.[0-9_]+(?:[eE][-+]?[0-9]+)?"
                     r"|[-+]?0[xXoObB][0-9a-fA-F_]+|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$")
+# 桥启动就校验 WONTON_ACP_MODE（清单 acp_mode 经 compose 注入桥），名单外的值桥直接退、插件装不上；
+# 名单照抄主仓库 crates/wonton-acp-bridge/src/config.rs 的 ALLOWED_MODES，桥改名单时同步这里。
+ACP_MODES = ("default", "plan", "acceptEdits", "read-only", "auto")
 
 
 def fail(message: str):
@@ -119,6 +122,9 @@ def load_agent(agent_dir: Path) -> dict:
         fail(f"{path}: id 要是至少两段的反向域名（小写字母、数字和单个连字符），如 ai.echo")
     if not VERSION_RE.match(str(data["version"])):
         fail(f"{path}: version 要是语义化版本，如 0.1.0")
+    if data["acp_mode"] not in ACP_MODES:
+        fail(f"{path}: acp_mode {data['acp_mode']!r} 不在桥的白名单 {list(ACP_MODES)} 里"
+             f"（config.rs 的 ALLOWED_MODES），装机会在桥启动时退")
     for entry in data.get("login") or []:
         if (not isinstance(entry, dict) or set(entry) != {"id", "title"}
                 or not LOGIN_ID_RE.match(str(entry.get("id", "")))):

@@ -56,7 +56,7 @@ services:
       WONTON_MATRIX_HOME_ROOM: ${WONTON_MATRIX_HOME_ROOM:?需要主人与 Bot 的主房间}
       WONTON_MCP_URL: ${WONTON_MCP_URL:?需要 MCP 总线地址}
       # 主会话的 ACP 模式；话题会话要更严的「改前先问」模式时，在 agent.yaml 配 acp_topic_mode。
-      WONTON_ACP_MODE: workspace-write
+      WONTON_ACP_MODE: default
     volumes:
       - ${WONTON_BOT_DATA}/bridge:/data/bridge
       - ${WONTON_BOT_DATA}/run:/data/run
