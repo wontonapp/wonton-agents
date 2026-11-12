@@ -1,9 +1,10 @@
 # 本文件由 gen/gen.py 从 agent.yaml 和 template/ 生成：改 agent.yaml 后重新生成，不要手改。
-# bridge 说 ACP、不认识任何一家 Agent；两个服务只共享 ACP socket 所在的 run/ 子目录，
-# bridge 的 crypto store 和 Matrix 令牌不给 agent，agent 的 HOME 和工作区不给 bridge。
+# bridge 说 ACP、不认识任何一家 Agent；两个服务共享 ACP socket 所在的 run/ 子目录和工作区（bridge 把主人发来的
+# 图片和文件落到工作区的 wonton-attachments/ 下，再把路径交给 Agent）。bridge 的 crypto store 和 Matrix 令牌不给
+# agent，agent 的 HOME 不给 bridge。
 services:
   agent:
-    image: ghcr.io/wontonapp/wonton-agents/echo:0.1.1
+    image: ghcr.io/wontonapp/wonton-agents/echo:0.1.2
     # 底座镜像固定用 65532，入口不再降权；bridge 挂同一个 run/ 目录，两个服务的属主必须相同。
     user: "65532:65532"
     restart: unless-stopped
@@ -32,7 +33,7 @@ services:
 
   bridge:
     # 桥镜像的版本和摘要只写这一处；桥升级改这里，再重新生成所有子目录。
-    image: ghcr.io/wontonapp/wonton-acp-bridge:0.2.1@sha256:4523c3cfef196d27521d8eaa4f4bb33784fa0fc01e1fe3071f6eb39ff0721c15
+    image: ghcr.io/wontonapp/wonton-acp-bridge:main-c69aebc@sha256:ce235c94454fdad3fbac729db5d21a8bcdec88688f43e6cd9aebe9efbac2c85d
     user: "65532:65532"
     restart: unless-stopped
     depends_on:
@@ -56,6 +57,7 @@ services:
     volumes:
       - ${WONTON_BOT_DATA}/bridge:/data/bridge
       - ${WONTON_BOT_DATA}/run:/data/run
+      - ${WONTON_BOT_DATA}/workspace:/workspace
     healthcheck:
       test: ["CMD", "test", "-S", "/data/run/acp.sock"]
       interval: 30s
@@ -65,7 +67,7 @@ services:
   # 登录网页的入口：webui 不能指向 Bot 服务（旧核心仍按这条判），而登录页在 agent 容器里（每个 Bot 一份），
   # 所以架一个全插件一份的转发。插件页只开默认 Bot 的那一份，聊天里的 /wonton login 用当前 Bot。
   web:
-    image: ghcr.io/wontonapp/wonton-agents/echo:0.1.1
+    image: ghcr.io/wontonapp/wonton-agents/echo:0.1.2
     user: "65532:65532"
     restart: unless-stopped
     entrypoint: ["python3", "/usr/local/lib/wonton-agent/web-proxy"]
@@ -83,7 +85,7 @@ services:
 x-wonton:
   spec: "0.6"
   id: ai.echo
-  version: 0.1.1
+  version: 0.1.2
   kind: agent
   title: { zh: Bot 样例（Echo）, en: Sample Bot (Echo) }
   description:
@@ -114,8 +116,8 @@ x-wonton:
       With a model gateway it goes through the gateway (the sample hook just logs the model name);
       the sample login accepts any key. It talks to no upstream service; for demos and testing only.
   release_notes:
-    zh: 说明改成更好懂的说法。
-    en: Clearer title and description.
+    zh: 能收图片和文件；正忙时接着发的几条消息，做完这一轮后合成一条处理。
+    en: Takes images and files; messages sent while busy are combined into one after the current turn.
   webui:
     service: web
     port: 8080

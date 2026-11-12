@@ -1,5 +1,5 @@
 id: ai.deepseek.dsh
-version: 0.1.2
+version: 0.1.3
 title: { zh: dsh, en: dsh }
 description:
   zh: DeepSeek 的编程 Agent（dsh），在聊天里写代码、跑命令
@@ -20,8 +20,8 @@ about:
     bot) and paste your own DeepSeek API key (created at platform.deepseek.com); the login state stays
     in the data directory across container rebuilds.
 release_notes:
-  zh: 随 wonton-agents 仓库首发，Agent 层不变；底座与桥由仓库统一提供。
-  en: First release from the wonton-agents repo; the agent layer is unchanged, with the base image and bridge provided by the repo.
+  zh: AI 正忙时你接着发的几条消息，等它这一轮做完会合成一条交给它；能收图片和文件。
+  en: Messages you send while the AI is busy are combined into one and handed over when the current turn ends; it can take images and files.
 license: MIT
 notices: [NOTICE, image/LICENSE.dsh]
 homepage: https://github.com/deepseek-ai/deepseek-harness

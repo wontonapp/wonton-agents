@@ -1,5 +1,5 @@
 id: ai.codex
-version: 0.1.1
+version: 0.1.2
 title: { zh: AI 编程助手（Codex）, en: Coding Bot (Codex) }
 description:
   zh: OpenAI（ChatGPT）家的编程助手：在聊天里帮你写代码、改文件、跑命令，规矩最严——默认只能看，要改动前都先弹卡片问你。直接用模型设置就行，也能登录 ChatGPT 订阅。
@@ -18,8 +18,8 @@ about:
     or running commands that reach outside; the tools your apps provide work from the chat too.
     The first start downloads the official program, so give it a moment.
 release_notes:
-  zh: 说明改成更好懂的说法。
-  en: Clearer title and description.
+  zh: AI 正忙时你接着发的几条消息，等它这一轮做完会合成一条交给它；能收图片和文件。
+  en: Messages you send while the AI is busy are combined into one and handed over when the current turn ends; it can take images and files.
 license: Apache-2.0
 notices: [NOTICE]
 homepage: https://github.com/openai/codex
