@@ -3,7 +3,7 @@
 # bridge 的 crypto store 和 Matrix 令牌不给 agent，agent 的 HOME 和工作区不给 bridge。
 services:
   agent:
-    image: ghcr.io/wontonapp/wonton-agents/kimi-code:0.1.0
+    image: ghcr.io/wontonapp/wonton-agents/kimi-code:0.1.1
     # 底座镜像固定用 65532，入口不再降权；bridge 挂同一个 run/ 目录，两个服务的属主必须相同。
     user: "65532:65532"
     restart: unless-stopped
@@ -65,7 +65,7 @@ services:
   # 登录网页的入口：webui 不能指向 Bot 服务（旧核心仍按这条判），而登录页在 agent 容器里（每个 Bot 一份），
   # 所以架一个全插件一份的转发。插件页只开默认 Bot 的那一份，聊天里的 /wonton login 用当前 Bot。
   web:
-    image: ghcr.io/wontonapp/wonton-agents/kimi-code:0.1.0
+    image: ghcr.io/wontonapp/wonton-agents/kimi-code:0.1.1
     user: "65532:65532"
     restart: unless-stopped
     entrypoint: ["python3", "/usr/local/lib/wonton-agent/web-proxy"]
@@ -83,7 +83,7 @@ services:
 x-wonton:
   spec: "0.6"
   id: ai.kimi-code
-  version: 0.1.0
+  version: 0.1.1
   kind: agent
   title: { zh: AI 编程助手（Kimi Code）, en: Coding Bot (Kimi Code) }
   description:
@@ -111,8 +111,8 @@ x-wonton:
       also log in with your own Kimi account (device code) or a Kimi Platform API key. The plugin
       page has a login web UI; /wonton login in chat works too.
   release_notes:
-    zh: 首个版本。
-    en: First version.
+    zh: 说明改成更好懂的说法。
+    en: Clearer title and description.
   webui:
     service: web
     port: 8080
