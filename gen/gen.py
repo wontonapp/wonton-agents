@@ -5,8 +5,8 @@
 
     python3 gen/gen.py [--check] [agents/<id> …]    # 不给目录就是 agents/ 下全部
 
-发版时 publish.sh 把 compose 里自身镜像的 image 行改写成 <仓库>:<版本>@sha256:<摘要> 提交回 main；
-gen 把和清单版本一致的摘要原样带上（agent 和 web 引用同一个镜像），发版后的 --check 才能过。
+发版时 publish.sh 把 compose 里自身镜像的 image 行改写成 <仓库>:<版本>@sha256:<摘要>，提交只挂在 tag 上；
+compose 里已有和清单版本一致的摘要时 gen 原样带上（agent 和 web 引用同一个镜像），--check 才能过。
 版本一换旧摘要作废：生成不带摘要的新标签，等下一次发布再写。
 
 agent.yaml 的字段（例子见 agents/echo/agent.yaml）：

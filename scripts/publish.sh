@@ -8,8 +8,9 @@
 #   3. 再检查一遍（--official 时按官方索引的要求）。
 #   4. 打 tag <id>/v<版本>，推送当前分支和 tag（远端 origin）。
 #
-# 在 GitHub Actions 里由推 tag 触发：TAG_PUSHED=1 跳过“tag 还没有”的检查，把摘要提交推回
-# TARGET_BRANCH，再把 tag 移到摘要提交上（发布过的 tag 只在这一步移动，之后不再动）。
+# 在 GitHub Actions 里由推 tag 触发：TAG_PUSHED=1 跳过“tag 还没有”的检查，把 tag 移到摘要提交上
+# （发布过的 tag 只在这一步移动，之后不再动）。摘要提交只挂在 tag 上、不推回 main：main 受保护规则
+# 约束（只收 PR、要过必需检查），发布工作流的令牌推不进去，仓库级规则也不能给它开例外。
 set -euo pipefail
 # shellcheck source=scripts/lib.sh
 . "$(dirname "$0")/lib.sh"
@@ -32,11 +33,8 @@ else
   tag="$(basename "$plugin")/v$version"
   prefix="$(basename "$plugin")/"
 fi
-if [[ -n "${TAG_PUSHED:-}" ]]; then
-  target_branch="${TARGET_BRANCH:?推送 tag 触发发布时要给 TARGET_BRANCH}"
-else
+if [[ -z "${TAG_PUSHED:-}" ]]; then
   ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null || die "已经有 tag $tag：先把清单的 version 改成新版本"
-  target_branch="$(git symbolic-ref --short HEAD)"
 fi
 
 # 清单的 release_notes，规格化成一行 JSON（键序无关），比较用。compose config 要求引用的文件都在：
@@ -157,7 +155,6 @@ in_core "$plugin" plugin check /plugin $official || die "插件包不合格"
 
 if [[ -n "${TAG_PUSHED:-}" ]]; then
   # tag 已经推过、指着没写摘要的提交：发布过的 tag 只在这里移到摘要提交上。
-  git push origin "HEAD:$target_branch"
   git tag -f -a "$tag" -m "$tag"
   git push --force origin "$tag"
 else
