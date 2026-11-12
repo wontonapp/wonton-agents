@@ -3,9 +3,13 @@
 # 把这个仓库的插件装进去。设置、密钥和数据都在 .wonton/ 里，不装进系统，不要 root。
 #
 #   scripts/dev.sh up                         起开发环境，等到都健康；再执行一次就是拉最新的核心镜像重启
-#   scripts/dev.sh install [--yes] [<引用>]   预览后安装插件：默认装工作区里的，给了 git 引用（tag、分支、提交）就装那个版本
-#   scripts/dev.sh reinstall [--yes]          卸载（保留数据）再装上工作区里的：改了插件包以后用
-#   scripts/dev.sh upgrade [--yes] [<引用>]   升级已装的插件：换容器不吊销 Bot 的设备，数据和密钥都留着
+#   scripts/dev.sh install [--yes] [--setting <名字>=<值>]… [<引用>]
+#                                             预览后安装插件：默认装工作区里的，给了 git 引用（tag、分支、提交）就装那个版本；
+#                                             --setting 填插件设置（清单 x-wonton.settings 的 Schema），可以给多次
+#   scripts/dev.sh reinstall [--yes] [--setting <名字>=<值>]…
+#                                             卸载（保留数据）再装上工作区里的：改了插件包以后用；装着时的设置值带过去
+#   scripts/dev.sh upgrade [--yes] [--setting <名字>=<值>]… [<引用>]
+#                                             升级已装的插件：换容器不吊销 Bot 的设备，数据、密钥和设置都留着
 #   scripts/dev.sh rebuild                    强制重建核心栈，再保数据重装工作区插件；其他插件容器不重建
 #   scripts/dev.sh uninstall [--purge]        卸载；--purge 连插件的数据一起删
 #   scripts/dev.sh status                     开发环境的服务和装着的插件
@@ -285,7 +289,8 @@ import json, sys
 text = sys.argv[1]
 try:
     error = json.loads(text)["error"]
-    print(f"{error['message']}（{error['kind']}）")
+    fields = "".join(f"；{f['name']}：{f['message']}" for f in error.get("fields") or [])
+    print(f"{error['message']}（{error['kind']}）{fields}")
 except Exception:
     print(text.strip() or "没有回应")
 PY
@@ -312,15 +317,45 @@ print(",".join(line["permission"] for line in p["permissions"]))
 PY
 }
 
-install_plugin() {
-  local yes="" ref="" dir="$plugin" arg preview grants result answer
-  for arg in "$@"; do
-    case "$arg" in
-      --yes) yes=1 ;;
+# 插件设置值的上传请求头（plugin_settings.py 按预览里的表单定类型），追加到数组 setting_header；没有值时不加。
+# 用法：settings_for <预览 JSON> [--base <文件>] [--old <说明>] [名字=值…]
+settings_for() {
+  local preview="$1" value
+  shift
+  printf '%s' "$preview" >"$tmp/preview.json"
+  value="$(python3 "$root/scripts/plugin_settings.py" header "$tmp/preview.json" "$@")" || exit 1
+  setting_header=()
+  [[ -z "$value" ]] || setting_header=(-H "Wonton-Plugin-Settings: $value")
+}
+
+# 装完、升级完核对设置值都存下了：核心不认识这个请求头时会照装、不带值，不能当成功。
+settings_check() { # <插件 id>
+  local id="$1" view
+  ((${#setting_header[@]})) || return 0
+  view="$(api GET "/_wonton/api/plugins/$id/settings")" || die "读不到设置，核不了值：$(error_text "$view")"
+  printf '%s' "$view" >"$tmp/settings.json"
+  python3 "$root/scripts/plugin_settings.py" verify "$tmp/settings.json" "${setting_header[1]#*: }" ||
+    die "核心没存下给的设置值：核心镜像可能太旧，不认识 Wonton-Plugin-Settings 请求头（scripts/dev.sh up 换最新的）"
+}
+
+# 解析 install、upgrade 共用的参数：--yes、--setting（进数组 setting_pairs）和一个可选的 git 引用。
+install_args() {
+  yes="" ref=""
+  setting_pairs=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --yes) yes=1; shift ;;
+      --setting) [[ $# -ge 2 && "$2" == ?*=* ]] || usage; setting_pairs+=("$2"); shift 2 ;;
       -*) usage ;;
-      *) [[ -z "$ref" ]] || usage; ref="$arg" ;;
+      *) [[ -z "$ref" ]] || usage; ref="$1"; shift ;;
     esac
   done
+}
+
+install_plugin() {
+  local yes ref dir="$plugin" preview grants result answer
+  local -a setting_pairs setting_header old=() base=()
+  install_args "$@"
   need_env
   need_plugin
   # 放在 .wonton/ 里：Docker Desktop 一定能挂载仓库下面的目录。退出时才删，所以 tmp 不是局部变量。
@@ -335,12 +370,20 @@ install_plugin() {
   preview="$(api POST /_wonton/api/plugins/preview -H 'Content-Type: application/x-tar' --data-binary @"$tmp/package.tar")" ||
     die "预览失败：$(error_text "$preview")"
   grants="$(show_preview "$preview")" || exit 1
+  # 冒烟装升级起点的旧 tag 时，旧版本没有的设置不带；工作区和指定的新版本少了设置就报错。
+  [[ -z "$ref" ]] || old=(--old "版本 $ref ")
+  if [[ -n "${carry_settings:-}" ]]; then
+    printf '%s' "$carry_settings" >"$tmp/base.json"
+    base=(--base "$tmp/base.json")
+  fi
+  settings_for "$preview" "${base[@]}" "${old[@]}" "${setting_pairs[@]}"
   if [[ -z "$yes" ]]; then
     read -r -p "确认安装？[y/N] " answer
     [[ "$answer" == [yY] ]] || die "没装"
   fi
-  result="$(api POST "/_wonton/api/plugins?grant=$grants" -H 'Content-Type: application/x-tar' --data-binary @"$tmp/package.tar")" ||
-    die "安装失败：$(error_text "$result")"
+  result="$(api POST "/_wonton/api/plugins?grant=$grants" -H 'Content-Type: application/x-tar' "${setting_header[@]}" \
+    --data-binary @"$tmp/package.tar")" || die "安装失败：$(error_text "$result")"
+  settings_check "$(python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' <<<"$result")"
   python3 - "$result" <<'PY'
 import json, sys
 p = json.loads(sys.argv[1])
@@ -361,36 +404,38 @@ uninstall_plugin() {
   if [[ -n "$purge" ]]; then echo "卸载了 $id，数据也删了"; else echo "卸载了 $id，数据留着，再装时接着用"; fi
 }
 
-# 装着就先卸载（保留数据），没装就直接装。
+# 装着就先卸载（保留数据），没装就直接装。卸载会丢掉设置值，所以先读出来，装的时候带上，--setting 再盖过它。
 reinstall() {
-  local yes="" arg id result
-  for arg in "$@"; do
-    case "$arg" in
-      --yes) yes=--yes ;;
+  local id result view carry_settings=""
+  local -a passed=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --yes) passed+=(--yes); shift ;;
+      --setting) [[ $# -ge 2 && "$2" == ?*=* ]] || usage; passed+=(--setting "$2"); shift 2 ;;
       *) usage ;;
     esac
   done
   need_env
   id="$(plugin_id)"
   if result="$(api GET "/_wonton/api/plugins/$id" 2>/dev/null)"; then
+    if view="$(api GET "/_wonton/api/plugins/$id/settings" 2>/dev/null)"; then
+      carry_settings="$(python3 "$root/scripts/plugin_settings.py" current /dev/stdin <<<"$view")" || exit 1
+    elif [[ "$view" != *'"unsupported"'* ]]; then
+      die "读不到 $id 的设置，没卸载：$(error_text "$view")"
+    fi
     uninstall_plugin
   elif [[ "$result" != *'"not_installed"'* ]]; then
     die "查不到 $id 装没装：$(error_text "$result")"
   fi
-  install_plugin $yes
+  install_plugin "${passed[@]}"
 }
 
 # 升级已装的插件：走核心的升级接口，数据和 Bot 的 Matrix 设备都保留（reinstall 是卸载再装，会吊销 Bot 设备，
 # Bot 就读不到旧房间的加密历史了）。
 upgrade() {
-  local yes="" ref="" dir="$plugin" arg id preview grants result answer
-  for arg in "$@"; do
-    case "$arg" in
-      --yes) yes=1 ;;
-      -*) usage ;;
-      *) [[ -z "$ref" ]] || usage; ref="$arg" ;;
-    esac
-  done
+  local yes ref dir="$plugin" id preview grants result answer
+  local -a setting_pairs setting_header
+  install_args "$@"
   need_env
   need_plugin
   id="$(plugin_id)"
@@ -406,12 +451,15 @@ upgrade() {
   preview="$(api POST "/_wonton/api/plugins/$id/upgrade/preview" -H 'Content-Type: application/x-tar' --data-binary @"$tmp/package.tar")" ||
     die "预览失败：$(error_text "$preview")"
   grants="$(show_preview "$preview")" || exit 1
+  # 升级只带改动的项：没给的设置核心沿用装着的值。
+  settings_for "$preview" "${setting_pairs[@]}"
   if [[ -z "$yes" ]]; then
     read -r -p "确认升级？[y/N] " answer
     [[ "$answer" == [yY] ]] || die "没升"
   fi
-  result="$(api POST "/_wonton/api/plugins/$id/upgrade?grant=$grants" -H 'Content-Type: application/x-tar' --data-binary @"$tmp/package.tar")" ||
-    die "升级失败：$(error_text "$result")"
+  result="$(api POST "/_wonton/api/plugins/$id/upgrade?grant=$grants" -H 'Content-Type: application/x-tar' "${setting_header[@]}" \
+    --data-binary @"$tmp/package.tar")" || die "升级失败：$(error_text "$result")"
+  settings_check "$id"
   python3 - "$result" <<'PY'
 import json, sys
 p = json.loads(sys.argv[1])["plugin"]

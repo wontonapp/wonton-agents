@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 插件合并前的端到端冒烟：用工作区的插件起一套一次性开发环境，六项真实请求，不用 mock。
-#   scripts/dev.sh smoke [--upgrade-from <tag> | --no-upgrade <原因>] [--bridge-image <镜像>]
+#   scripts/dev.sh smoke [--upgrade-from <tag> | --no-upgrade <原因>] [--bridge-image <镜像>] [--setting <名字>=<值>]…
 # 六项：装得上 / 网页打得开 / 用户身份能用 / 工具 Bot 调得到 / 升级保数据 / 重装保数据；探针写了 extra_check 时另有一项附加检查。任何 FAIL 退出非 0。
 # 插件自己的探测在 scripts/smoke-probes.sh，写法见模板里的这个文件；一个仓库放多家插件时，WONTON_PLUGIN 指插件目录，
 # 探针放在那个目录的 smoke-probes.sh。
@@ -21,11 +21,13 @@ usage() { sed -n '2,4p' "$0" >&2; exit 2; }
 upgrade_from=""
 no_upgrade=""
 bridge_image=""
+cli_settings=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --upgrade-from) [[ $# -ge 2 && -n "$2" ]] || usage; upgrade_from="$2"; shift 2 ;;
     --no-upgrade) [[ $# -ge 2 && -n "$2" ]] || usage; no_upgrade="$2"; shift 2 ;;
     --bridge-image) [[ $# -ge 2 && -n "$2" ]] || usage; bridge_image="$2"; shift 2 ;;
+    --setting) [[ $# -ge 2 && "$2" == ?*=* ]] || usage; cli_settings+=("$2"); shift 2 ;;
     *) usage ;;
   esac
 done
@@ -179,6 +181,11 @@ fi
 
 probes_facts "$SMOKE_PLUGIN"
 probes_load
+# 插件设置值：探针声明的 SMOKE_SETTINGS 在前，命令行的 --setting 在后，同名时后给的算数。每次安装都带上。
+setting_args=()
+for pair in "${SMOKE_SETTINGS[@]}" "${cli_settings[@]}"; do
+  setting_args+=(--setting "$pair")
+done
 
 # ---------- 1. 装得上 ----------
 say "1. 装得上（check、install、running healthy）"
@@ -242,7 +249,7 @@ data_wrote=0
 data_upgrade_base=0
 if [[ "$DATA_NA" != 1 ]] && (( DATA_HOOKS )) && [[ -n "$upgrade_from" ]]; then
   say "装 tag $upgrade_from（写数据后升级）"
-  if probes_dev_t 600 install --yes "$upgrade_from" >>"$LOG" 2>&1 &&
+  if probes_dev_t 600 install --yes "${setting_args[@]}" "$upgrade_from" >>"$LOG" 2>&1 &&
     probes_status_wait "$PROBES_PLUGIN_ID" 40 >/dev/null; then
     data_upgrade_base=1
     # 钩子要用网页地址和用户会话：这一轮在主安装之前，probes_run 还没取过、也没登录过。
@@ -258,7 +265,7 @@ fi
 # 装过升级起点时，核心不接受 install 覆盖已装的插件（同一版本号也一样）：升级用 reinstall，保留数据。
 install_cmd=install
 ((data_upgrade_base == 1)) && install_cmd=reinstall
-if ! probes_dev "$install_cmd" --yes >>"$LOG" 2>&1; then
+if ! probes_dev "$install_cmd" --yes "${setting_args[@]}" >>"$LOG" 2>&1; then
   fail 装得上 "dev.sh $install_cmd --yes 失败，看 $LOG"
   for item in 网页打得开 用户身份能用 工具Bot调得到; do fail "$item" "装不上"; done
   exit 0
@@ -295,7 +302,7 @@ else
     fi
   fi
   if [[ "$data_wrote" == 1 ]]; then
-    if probes_dev_t 900 reinstall --yes >>"$LOG" 2>&1 &&
+    if probes_dev_t 900 reinstall --yes "${setting_args[@]}" >>"$LOG" 2>&1 &&
       probes_status_wait "$PROBES_PLUGIN_ID" 40 >/dev/null; then
       probes_data_check 重装保数据 "reinstall 后"
     else

@@ -5,6 +5,7 @@ scripts/dev-model.sh
 scripts/dev-resources.sh
 scripts/dev-kit.sh
 scripts/dev_settings.py
+scripts/plugin_settings.py
 scripts/dev_test.sh
 scripts/check.sh
 scripts/publish.sh
