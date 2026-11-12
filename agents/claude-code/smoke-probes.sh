@@ -1,8 +1,26 @@
 # claude-code 是 Agent：没有应用账号体系或插件自己的 MCP 服务；清单有 webui（登录网页）。
 # shellcheck shell=bash disable=SC2034
-# 通用插件冒烟只验证清单能装上；Matrix 加密私聊、模型回答和 Wonton MCP 在专项验收里实测。
+# 通用插件冒烟只验证清单能装上；Matrix 加密私聊、模型回答和 Wonton MCP 在附加检查里实测。
 IDENTITY_NA=1
-SMOKE_NOTE="claude-code 没有应用账号体系或插件自己的 MCP 服务，登录网页登的是 Anthropic 官方账号；主人身份、插件工具两项不适用。专项验收验证加密 Matrix 私聊、模型回答和 Wonton MCP 只读工具。"
+SMOKE_NOTE="claude-code 没有应用账号体系或插件自己的 MCP 服务，登录网页登的是 Anthropic 官方账号；主人身份、插件工具两项不适用。附加检查验证加密 Matrix 私聊、模型回答和 Wonton MCP 只读工具。"
+
+# Agent 专项：附加检查里用套件的 Agent 助手逐项记子项（见 scripts/agent-probes.sh）。default 模式下调 MCP 工具
+# 也要确认、只读命令不出卡片：MCP 子项同时等卡片，确认卡片用在工作区建文件验。重启后要等更久才 healthy。
+export EXTRA_TIMEOUT=3600
+export AGENT_HEALTHY_WAIT=360
+extra_check() {
+  agent_check_chat '请用一句话回答：claude-code 冒烟。记住暗号：青杏。'
+  agent_check_model
+  agent_check_mcp_chat card
+  agent_check_mcp_bus
+  agent_check_card agent
+  agent_check_interrupt
+  agent_check_restart agent bridge
+  agent_check_resume 青杏
+  agent_check_outsider
+  agent_check_login_web claudeai console api-key
+  agent_check_login claudeai,api-key 'https://(claude\.com/cai|platform\.claude\.com)/oauth/authorize'
+}
 
 web_assert() { # 标准输入：登录网页（底座 wonton-agent 的登录页，经 web 服务转发）。
   # 只用一个 grep：web_assert 的标准输入只能读一遍（两个 grep 会把第二趟读成空）。
