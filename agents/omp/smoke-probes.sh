@@ -6,6 +6,21 @@
 export IDENTITY_NA=1
 export SMOKE_NOTE="omp 没有自己的用户体系；登录态存在 agent 容器的数据卷里。"
 
+# Agent 的附加检查（助手见开发套件的 scripts/agent-probes.sh）：首条消息留暗号，重启 agent 和 bridge 以后同一个会话
+# 还要问得回来。一轮十几条消息、每条要等模型，放宽到 50 分钟。
+export EXTRA_TIMEOUT=3000
+extra_check() {
+  agent_check_chat '请用一句话回答：omp 冒烟。记住暗号：青杏。'
+  agent_check_model
+  agent_check_mcp_chat
+  agent_check_mcp_bus
+  agent_check_card
+  agent_check_interrupt
+  agent_check_restart agent bridge
+  agent_check_resume 青杏
+  agent_check_outsider
+}
+
 # 数据探针把标记写进 agent 容器的数据卷（HOME，agent.db 和会话也在那里），验证重装不丢。
 # 核心给容器名带 Bot 后缀（--default），按前缀找。
 agent_container() {
