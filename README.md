@@ -41,7 +41,7 @@ docker build -t ghcr.io/wontonapp/wonton-agent-base:dev base
 | `NOTICE`、许可证文件 | 上游程序、图标来源和商标说明；CLI 的许可证写进清单 `license` |
 | `icon.svg` | 首字母图标 |
 | `smoke-probes.sh` | 冒烟探针：`web_assert`、`identity_check`、`MCP_TOOL`/`mcp_assert`、`data_write`/`data_check` |
-| `docker-compose.yml` | 用 `gen/` 生成后一起提交：`python3 gen/gen.py agents/<id>`（生成器用 PyYAML 解析 agent.yaml，MIT 许可证）。发版写回的自身镜像摘要，版本没变时 gen 原样保留，换了版本就丢掉等发布再写 |
+| `docker-compose.yml` | 用 `gen/` 生成后一起提交：`python3 gen/gen.py agents/<id>`（生成器用 PyYAML 解析 agent.yaml，MIT 许可证）。发版的自身镜像摘要写进只挂在 tag 上的提交（商店按 tag 取），不进 main；main 上已有的、和清单版本一致的摘要 gen 原样保留 |
 
 还要实测并在 README 里写明：最严格的模式叫什么、只放行 Wonton MCP 的配置键、内存峰值、越界操作怎么触发确认卡片
 （写法见下面「越界操作怎么触发确认卡片」）。这家的差异只放在这个目录里，桥和底座不写特例。
@@ -87,7 +87,7 @@ scripts/dev.sh smoke
 `--official` 把关）、`shellcheck`、构建 Agent 镜像（不推送）；`base/` 另跑
 长度检查、测试和镜像构建。一个子目录失败不影响别的作业。
 
-推 `<id>/v<版本>` 或 `base/v<版本>` 的 tag 触发发布：构建多架构镜像、推送、把摘要写回 compose（底座是 `base/DIGEST`）。
+推 `<id>/v<版本>` 或 `base/v<版本>` 的 tag 触发发布：构建多架构镜像、推送、把摘要写进 compose（底座是 `base/DIGEST`）提交，tag 移到这个提交上；这个提交不进 main。
 机器人每天读一次 ACP 注册表，注册表上的版本比 `agent.toml` 新时提一个 PR。
 
 ## 许可证

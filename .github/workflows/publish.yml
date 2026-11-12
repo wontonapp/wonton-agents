@@ -1,8 +1,9 @@
 name: 发布
 
 # 推 tag 触发：插件是 `<id>/v<版本>`，底座是 `base/v<版本>`。多架构镜像在 GitHub 托管的机器上构建、用
-# GITHUB_TOKEN 推到 ghcr.io，不登录别的镜像仓库；推完把摘要写回 compose（底座写进 base/DIGEST），提交到 main，
-# 再把 tag 移到摘要提交上——发布过的 tag 只在这一步移动，之后不再动。
+# GITHUB_TOKEN 推到 ghcr.io，不登录别的镜像仓库；推完把摘要写进 compose（底座写进 base/DIGEST）提交，
+# 再把 tag 移到这个提交上——发布过的 tag 只在这一步移动，之后不再动。这个提交只挂在 tag 上，不推回 main
+# （见 scripts/publish.sh 开头）。
 on:
   push:
     tags: ['*/v*']
@@ -12,7 +13,7 @@ permissions:
   packages: write
 
 concurrency:
-  # 都往 main 推摘要提交，一次只发一个。
+  # 一次只发一个，tag 的移动按推送顺序。
   group: publish
   cancel-in-progress: false
 
@@ -72,7 +73,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add base/DIGEST
           git diff --cached --quiet || git commit -m "chore(release): $TAG 的镜像按摘要固定"
-          git push origin HEAD:main
           git tag -f -a "$TAG" -m "$TAG"
           git push --force origin "$TAG"
 
@@ -97,7 +97,6 @@ jobs:
         env:
           WONTON_PLUGIN: agents/${{ needs.plan.outputs.id }}
           TAG_PUSHED: "1"
-          TARGET_BRANCH: main
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
