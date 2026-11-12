@@ -1,5 +1,5 @@
 id: ai.qwen-code
-version: 0.1.0
+version: 0.1.1
 title: { zh: AI 编程助手（Qwen Code）, en: Coding Bot (Qwen Code) }
 description:
   zh: 阿里巴巴（通义千问）家的编程助手：在聊天里帮你写代码、改文件、跑命令，动手前先弹卡片问你。直接用模型设置就行，也能填自己的千问 key。
@@ -22,8 +22,8 @@ about:
     commands; Wonton plugin tools are called from the chat.
     The chat is an encrypted direct message the core creates, and it carries on after a restart.
 release_notes:
-  zh: "首个版本：Qwen Code 0.27.2，经桥说 ACP，模型走网关或自己的 API key。"
-  en: "First version: Qwen Code 0.27.2 over the shared bridge, models via the gateway or its own API key."
+  zh: 说明改成更好懂的说法。
+  en: Clearer title and description.
 license: Apache-2.0
 notices: [NOTICE, image/LICENSE.qwen-code]
 homepage: https://github.com/QwenLM/qwen-code
