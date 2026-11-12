@@ -58,6 +58,8 @@ jobs:
         run: shellcheck scripts/*.sh
       - name: dev.sh 的 logs 和 diag（假 docker，不用真的 Docker）
         run: scripts/dev_test.sh
+      - name: gen 的测试
+        run: python3 -m unittest discover -s gen/tests -v
       # 公开仓库看不到核心的设计记录，注释和文档里写编号只会留下死链。
       - name: 不引用 ADR 编号
         run: |
