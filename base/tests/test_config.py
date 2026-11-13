@@ -231,6 +231,33 @@ class LoadConfigTests(unittest.TestCase):
         self.assertIsNone(message)
         self.assertEqual(config["web"]["port"], 8080)
 
+    def test_model_source_selectors(self):
+        config, error = load('''[acp]
+command = ["x"]
+[[login]]
+id = "subscription"
+name = "Subscription"
+model_source = "official"
+command = ["/official-login"]
+[[login]]
+id = "magpie"
+name = "magpie"
+model_source = "gateway"
+''')
+        self.assertIsNone(error)
+        self.assertEqual([m["id"] for m in agent.login_methods(config)], ["subscription", "magpie"])
+        invalid = '''[acp]
+command = ["x"]
+[[login]]
+id = "magpie"
+name = "magpie"
+model_source = "gateway"
+command = ["/external-provider"]
+'''
+        rejected, error = load(invalid)
+        self.assertIsNone(rejected)
+        self.assertIsNotNone(error)
+
     def test_invalid_toml_rejected(self):
         stderr = StringIO()
         with redirect_stderr(stderr):

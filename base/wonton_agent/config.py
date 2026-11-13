@@ -42,6 +42,10 @@ def load_config(path: Path = CONFIG_PATH) -> dict:
     if "gateway" in config:
         if not isinstance(config["gateway"].get("hook"), str):
             die("配置 [gateway] 缺 hook（可执行文件路径）")
+        required = config["gateway"].get("required_env", [])
+        if not isinstance(required, list) or not all(
+                isinstance(name, str) and ENV_NAME.fullmatch(name) for name in required):
+            die("[gateway] required_env 必须是环境变量名列表")
         env_map = config["gateway"].get("env", {})
         if not isinstance(env_map, dict) or not all(
                 isinstance(target, str) and isinstance(source, str)
@@ -107,6 +111,15 @@ def validate_logins(items: list) -> None:
         seen.add(login_id)
         if not isinstance(item.get("name"), str) or not item["name"]:
             die(f"[[login]] {login_id} 缺 name（聊天里列出的名字）")
+        source = item.get("model_source")
+        if source not in (None, "official", "gateway"):
+            die(f"[[login]] {login_id} model_source 只能是 official 或 gateway")
+        if source is not None and item.get("restart_on_success", True) is not True:
+            die(f"[[login]] {login_id} 切换模型来源必须重启，不能关闭 restart_on_success")
+        if source == "gateway":
+            if "command" in item or "status" in item:
+                die(f"[[login]] {login_id} 网关选择由底座处理，不接受 command 或 status")
+            continue
         command = item.get("command")
         if not isinstance(command, list) or not command or not all(isinstance(a, str) and a for a in command):
             die(f'[[login]] {login_id} command 必须是非空字符串列表，例如 command = ["/usr/local/bin/foo", "login"]')
@@ -134,10 +147,10 @@ def validate_web(section: dict | None) -> None:
 
 
 def login_methods(config: dict) -> list[dict] | None:
-    """[[login]] 要改写成的 authMethods；没有这段时返回 None，转发保持原样。"""
+    """网关 Agent 只提供声明的登录入口；不透传上游的 API key 登录。"""
     logins = config.get("login")
     if not logins:
-        return None
+        return [] if config.get("gateway") else None
     return [{"id": section["id"], "name": section["name"], "type": "terminal", "args": []}
             for section in logins]
 

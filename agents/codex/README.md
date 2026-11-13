@@ -56,19 +56,21 @@ app-server 同容器）；桥 11 MiB。agent.yaml 声明 1G。
 
 ## 模型和登录
 
-模型网关接好时（三个 `WONTON_MODEL_*` 都有值），网关钩子把网关写进
-`$CODEX_HOME/config.toml`：`model_provider`、`model`、`model_catalog_json` 和
-`[model_providers.wonton]`；API key 只以 `env_key = "OPENAI_API_KEY"` 引用变量名，
-值由底座经 `[gateway.env]` 注进 ACP 子进程。任一变量为空时钩子清掉网关配置，
-改用官方登录态；容器即沙箱的声明和 on-request 档两种情况下都保留。
+模型来源默认是 magpie。三个 `WONTON_MODEL_*` 都有值时，钩子重写
+`$CODEX_HOME/config.toml` 的主模型、审查模型、模型目录和 `model_providers.wonton`；
+显示名是 magpie，凭据只引用 ACP 子进程的 `OPENAI_API_KEY`。旧 `auth.json` 中的
+ChatGPT token 或 API key 不改变这个选择。缺网关时模型会话明确报未就绪，不启动 Codex；
+登录网页和聊天的登录入口仍可用。
 
-官方账号登录：聊天里 `/wonton login`（设备码登录 ChatGPT，或贴 API key），或打开
-登录网页（插件页）做同样的事。设备码链接由桥发进聊天，容器里没有浏览器。登录态在
-数据卷 `$CODEX_HOME/auth.json` 里，容器重建后还在。
+只有主人发 `/wonton login chatgpt` 或在登录网页选择 ChatGPT，并完成设备码登录，
+底座才把这个 Bot 切到官方订阅。配置强制 `forced_login_method = "chatgpt"`，
+ACP 启动时不继承外部 OpenAI 地址或 key；网关是否可用不影响订阅模式。
+`/wonton login magpie` 或网页里的 magpie 选项切回模型设置。选路记在 Bot 数据目录，
+不从凭据文件推测。直接填写 API key 的入口已移除；其他上游只在 magpie 配置。
 
-实测：initialize 应答的 `authMethods` 已改写成清单里的两种登录；登录命令经网页接口
-起停和输出流式转发都正常（设备码请求在本机被 auth.openai.com 拒了 403，流程本身
-通了，真实出码未验证）。
+Codex 自带的终端登录、模型命令、项目配置和 ACP 模型切换属于上游界面；插件不修改
+上游程序，也不能凭启动配置承诺网络级隔离。托管默认值和模型目录指向 magpie，
+不把上游的外部 key/地址表单当成 Wonton 支持的第三种接法。
 
 ## 上游版本
 

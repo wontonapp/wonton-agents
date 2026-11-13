@@ -6,9 +6,9 @@
    /data/agent/tools/<名字>/<版本>/；版本目录已存在就不重下，校验失败报错退出。
 2. [skills]/[prompt]（可选）：把镜像里 /usr/local/share/wonton-agent/ 下的内容拷到 agent.toml
    指定的目录，每次启动覆盖。
-3. [gateway]（可选）：核心注入的 WONTON_MODEL_* 变量都有值时调钩子 apply，任一为空调 clear；
-   网关后来就绪时核心会重建容器，钩子在新一轮启动里生效。密钥只引用变量名，不写进文件。
-   [gateway.env]（可选）把映射的变量加进 [acp] 子进程的环境（[[login]] 子进程不加）。
+3. [gateway]（可选）：默认要求网关就绪；只有成功选择官方订阅才清除网关覆盖。
+   缺网关时保留 ACP 登录控制通道，模型会话明确报未就绪，不启动上游 Agent。
+   [gateway.env] 只进网关模式的 [acp] 子进程。
 4. [acp]：在 $WONTON_ACP_SOCKET 上监听，每个连接起一次 ACP 命令（stdio 说 ACP）双向转发，
    连接断了杀掉子进程。转发时去掉终端配色码；子进程 stderr 直接进容器日志。
    socket 在前面几步都成功之后才建，compose 的健康检查以 socket 文件为准，建好之前不过。
@@ -28,7 +28,7 @@ import asyncio
 import signal
 import subprocess
 
-from . import assets, config, die, gateway, install, log, relay
+from . import assets, config, die, gateway, install, log, model_source, relay
 
 
 def shutdown(signum: int, frame: object) -> None:
@@ -47,7 +47,10 @@ def main() -> None:
         install.install_tools(settings)
         assets.install_skills(settings)
         assets.install_prompt(settings)
-        gateway.apply_gateway(settings)
+        try:
+            gateway.apply_gateway(settings)
+        except model_source.ModelNotReady as error:
+            log(str(error))
         asyncio.run(relay.serve(settings))
     except (RuntimeError, OSError, subprocess.SubprocessError) as error:
         die(str(error))

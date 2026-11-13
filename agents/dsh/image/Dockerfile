@@ -1,6 +1,7 @@
 # Agent 层：底座镜像（wonton-agent 入口）+ 官方 dsh CLI（@deepseek-ai/dsh，MIT，可再分发，打进镜像）。
 # 底座按摘要固定，防镜像漂移；底座升级改这一行重新构建。
-FROM ghcr.io/wontonapp/wonton-agent-base:0.1.1@sha256:1f66748aa0f30bae92496fabd35bebc35d9fb965762096b876a4b45c1ad2cab2
+ARG BASE_IMAGE=ghcr.io/wontonapp/wonton-agent-base:0.1.1@sha256:1f66748aa0f30bae92496fabd35bebc35d9fb965762096b876a4b45c1ad2cab2
+FROM ${BASE_IMAGE}
 
 # 官方 npm registry 的 tgz，按 npm dist.integrity 校验通过才安装；依赖由 npm 安装时核对。
 ARG DSH_VERSION=0.2.2-rc.1
@@ -25,8 +26,6 @@ ENV DSH_HOME=/data/agent/home/.dsh \
 
 COPY agent.toml /etc/wonton-agent/
 COPY --chmod=0755 gateway /usr/local/lib/wonton-agent/gateway
-COPY --chmod=0755 dsh-login /usr/local/lib/wonton-agent/dsh-login
-COPY --chmod=0755 dsh-login-status /usr/local/lib/wonton-agent/dsh-login-status
 COPY prompt.md /usr/local/share/wonton-agent/prompt.md
 # skill 目录 COPY 整棵树：COPY --chmod 会连自动创建的目录一起改（0644 会丢掉目录的 x 位）。
 COPY wonton-help/ /usr/local/share/wonton-agent/skills/wonton-help/

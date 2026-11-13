@@ -1,6 +1,0 @@
-#!/bin/sh
-# apiKeyHelper：CLI 要 key 时调这里，把存下的 key 打出来。没有就退出 1，CLI 报错说清楚。
-set -eu
-key_file="$HOME/.claude/api-key"
-[ -s "$key_file" ] || { echo "没有存下的 API key：先登录" >&2; exit 1; }
-cat "$key_file"

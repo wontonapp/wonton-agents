@@ -35,7 +35,7 @@ docker build -t ghcr.io/wontonapp/wonton-agent-base:dev base
 | `agent.yaml` | 插件 id、版本、标题和简介、许可证、notices、图标、登录方式、`acp_mode`、`acp_topic_mode`、内存、额外的环境变量、`webui`（可选）、额外权限 |
 | `image/Dockerfile` | 从固定在摘要上的底座开始，`COPY` 本目录的 `agent.toml`、网关钩子、登录脚本、`prompt.md`、`skills/` |
 | `image/agent.toml` | 这家的安装来源和摘要、ACP 启动命令、网关钩子、`[[login]]` |
-| `image/<网关钩子>` | 把 `WONTON_MODEL_*` 写进这家的配置（`apply`），再改回来（`clear`）；密钥只留变量名 |
+| `image/<网关钩子>` | 把模型来源应用到配置：默认 magpie（`apply`），显式官方订阅才移除网关（`clear`） |
 | `image/<登录脚本>` | 终端登录，一个 `[[login]]` 一个 |
 | `image/prompt.md`、`image/skills/` | 系统提示和 Wonton 自己的 skill |
 | `NOTICE`、许可证文件 | 上游程序、图标来源和商标说明；CLI 的许可证写进清单 `license` |
@@ -86,6 +86,9 @@ scripts/dev.sh smoke
 子目录各跑一个作业：`gen --check`、`plugin check`（非官方；官方要求由发布流程发版前的
 `--official` 把关）、`shellcheck`、构建 Agent 镜像（不推送）；`base/` 另跑
 长度检查、测试和镜像构建。一个子目录失败不影响别的作业。
+
+提交前可运行 `lefthook install` 安装本仓库的长度和生成结果门禁（Lefthook，MIT，仅开发工具）。
+模型来源及缺网关时仍可登录的底座契约见 [base/](base/#模型网关钩子)。
 
 推 `<id>/v<版本>` 或 `base/v<版本>` 的 tag 触发发布：构建多架构镜像、推送、把摘要写进 compose（底座是 `base/DIGEST`）提交，tag 移到这个提交上；这个提交不进 main。
 机器人每天读一次 ACP 注册表，注册表上的版本比 `agent.toml` 新时提一个 PR。

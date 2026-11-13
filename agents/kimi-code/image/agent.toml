@@ -2,7 +2,7 @@
 # ACP 启动命令、网关钩子、登录和登录网页是子镜像的全部差异。
 # ACP 命令跟包里 package.json 的 bin 字段：kimi -> dist/main.mjs（包根的入口，不是 bin/ 下的）。
 [acp]
-command = ["/data/agent/tools/kimi/2.5.3/dist/main.mjs", "acp"]
+command = ["/usr/local/lib/wonton-agent/acp-launch"]
 
 [[install]]
 name = "kimi"
@@ -22,17 +22,15 @@ hook = "/usr/local/lib/wonton-agent/gateway"
 [web]
 port = 8080
 
-# 设备码登录：kimi login 打印链接和设备码，轮询等待授权，不需要输入；成功后容器重启，
-# 没接网关时钩子把模型指回账号登录态。
+# 设备码登录成功后才选择官方订阅，已有凭据不自动选路。
 [[login]]
 id = "kimi-account"
 name = "Kimi 账号（设备码）"
-command = ["/data/agent/tools/kimi/2.5.3/dist/main.mjs", "login"]
+model_source = "official"
+command = ["/usr/local/lib/wonton-agent/acp-launch", "--login"]
 status = ["/usr/local/lib/wonton-agent/login-status", "kimi-account"]
 
-# 开放平台 API key（platform.kimi.com）：读一行 key，先对平台验证再写进配置。
 [[login]]
-id = "platform-key"
-name = "Kimi 开放平台 API key"
-command = ["/usr/local/lib/wonton-agent/login-platform-key"]
-status = ["/usr/local/lib/wonton-agent/login-status", "platform-key"]
+id = "magpie"
+name = "magpie 模型网关"
+model_source = "gateway"

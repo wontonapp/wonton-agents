@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""网关钩子：apply 把网关写进 opencode 的全局配置 ~/.config/opencode/opencode.json（实测 2.2.7
-自定义服务商要写在 `providers` 键下，V1 的单数 `provider` 键会走迁移、丢 package），clear 删掉
-整个文件——这份文件由钩子全权管理，opencode 自己的登录态在 SQLite（~/.local/share/opencode），
-不在这里。密钥只以变量名写进 providers.wonton.env，值留在环境变量里。"""
+"""Manage magpie model defaults and provider policy without restoring direct routes.
+
+The key is an environment reference, never a value in the configuration file.
+"""
 import json
 import os
 import sys
 from pathlib import Path
 
 CONFIG = Path(os.path.expanduser("~/.config/opencode/opencode.json"))
-PROVIDER_ID = "wonton"
+PROVIDER_ID = "magpie"
 
 
 def apply() -> None:
@@ -19,9 +19,19 @@ def apply() -> None:
         "$schema": "https://opencode.ai/config.json",
         # opencode 的 model 引用是 provider/model 两段，模型 id 里的斜杠不碍事（实测 2.2.7）。
         "model": f"{PROVIDER_ID}/{model}",
+        "agents": {
+            name: {"model": f"{PROVIDER_ID}/{model}"}
+            for name in ("build", "plan", "general", "explore", "title", "summary", "compaction")
+        },
+        # Upstream policies are last-match-wins and also apply to saved accounts.
+        "policies": [
+            {"action": "provider.use", "resource": "*", "effect": "deny"},
+            {"action": "provider.use", "resource": PROVIDER_ID, "effect": "allow"},
+            {"action": "integration.connect", "resource": "*", "effect": "deny"},
+        ],
         "providers": {
             PROVIDER_ID: {
-                "name": "Wonton",
+                "name": "magpie",
                 "env": ["WONTON_MODEL_API_KEY"],
                 "package": "@opencode/ai/providers/openai-compatible",
                 "settings": {"baseURL": base},
@@ -44,8 +54,7 @@ def apply() -> None:
 
 
 def clear() -> None:
-    CONFIG.unlink(missing_ok=True)
-    print(f"网关配置已从 {CONFIG} 移除")
+    sys.exit("magpie 模型网关未就绪：OpenCode 只支持网关模型，不能清除网关配置")
 
 
 if __name__ == "__main__":

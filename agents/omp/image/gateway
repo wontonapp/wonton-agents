@@ -1,73 +1,82 @@
 #!/usr/bin/env python3
-"""omp 的网关钩子：apply 把网关写进 ~/.omp/agent/ 的 models.yml 和 config.yml，clear 再移出去，
-其余内容保留。omp 不读 OPENAI_* 变量；密钥不落盘：models.yml 的 apiKey 只写变量名，omp 取值时
-才按名字读环境变量（变量没设时会把名字当字面量用，所以 apply 前提是三个变量都有值，底座保证）。"""
+"""Manage omp model routes without restoring old custom providers or API keys."""
 import json
 import os
 import sys
 from pathlib import Path
 
 CONFIG_DIR = Path(os.environ.get("HOME", "/data/agent/home")) / ".omp" / "agent"
-PROVIDER = "wonton"
-ROLES = ("default", "smol", "slow", "plan")
+PROVIDER = "litellm"
+ROLES = ("default", "smol", "slow", "plan", "vision", "commit", "tiny", "memory", "task", "advisor")
+# Pinned omp 18.16.0 auth catalog. enabledProviders is NOT a transport allowlist.
+BUILTIN_PROVIDERS = frozenset("""
+abliteration aiand aimlapi alibaba-coding-plan alibaba-token-plan amazon-bedrock
+anthropic apple azure baseten bedrock-mantle cerebras charm-hyper cline-pass
+cloudflare-ai-gateway cloudflare-workers-ai commandcode coralbricks coreweave
+cursor deepinfra deepseek devin exa factory-droid firepass fireworks github-copilot
+gitlab-duo gitlab-duo-agent gmi-cloud google google-antigravity google-gemini-cli
+google-vertex groq helmcode huggingface inception kagi kilo kimi-code litellm
+llama.cpp lm-studio local meta minimax minimax-code minimax-code-cn mistral modular
+moonshot muse-code nanogpt novita nvidia ollama ollama-cloud openai openai-codex
+openai-codex-device opencode-go opencode-zen openrouter parallel perplexity qianfan
+qwen-portal sakana sambanova scaleway siliconflow siliconflow-cn singularityapi-dev
+singularityapi-tech snowflake stencil stepfun synthetic tavily together typesafe
+umans venice vercel-ai-gateway vllm wafer-serverless web xai xai-oauth xiaomi
+xiaomi-token-plan-ams xiaomi-token-plan-cn xiaomi-token-plan-sgp yolo-auto zai
+zai-coding-plan zenmux zhipu-coding-plan
+""".split())
+SUBSCRIPTIONS = {
+    "openai-codex-device": "openai-codex",
+    "github-copilot": "github-copilot",
+    "kimi-code": "kimi-code",
+    "gitlab-duo-agent": "gitlab-duo-agent",
+    "factory-droid": "factory-droid",
+    "muse-code": "muse-code",
+    "xai-oauth": "xai-oauth",
+    "cursor": "cursor",
+    "perplexity": "perplexity",
+}
 
 
-def read_json(path: Path) -> dict | None:
-    try:
-        text = path.read_text()
-    except FileNotFoundError:
-        return None
-    try:
-        value = json.loads(text)
-    except json.JSONDecodeError as error:
-        raise ValueError(f"{path} 不是合法 JSON，没法安全地改：{error}") from error
-    return value if isinstance(value, dict) else None
+def write_settings(provider: str, roles: dict) -> None:
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    settings = {
+        "modelRoles": roles,
+        "enabledModels": [roles["default"]] if roles else [],
+        "disabledProviders": sorted((BUILTIN_PROVIDERS | {"wonton", PROVIDER}) - {provider}),
+        "modelProviderOrder": [provider],
+    }
+    (CONFIG_DIR / "config.yml").write_text(json.dumps(settings))
 
 
 def apply() -> None:
+    required = ("WONTON_MODEL_DEFAULT", "WONTON_MODEL_BASE_URL", "WONTON_MODEL_API_KEY")
+    if not all(os.environ.get(name, "").strip() for name in required):
+        raise ValueError("magpie 模型网关未就绪：缺少模型配置")
     model = os.environ["WONTON_MODEL_DEFAULT"]
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     provider = {
         "baseUrl": os.environ["WONTON_MODEL_BASE_URL"],
         "api": "openai-completions",
-        "apiKey": "WONTON_MODEL_API_KEY",
+        "apiKey": "LITELLM_API_KEY",
         "models": [{"id": model}],
     }
     (CONFIG_DIR / "models.yml").write_text(json.dumps({"providers": {PROVIDER: provider}}))
     selector = f"{PROVIDER}/{model}"
-    (CONFIG_DIR / "config.yml").write_text(json.dumps({"modelRoles": {role: selector for role in ROLES}}))
+    write_settings(PROVIDER, {role: selector for role in ROLES})
 
 
 def clear() -> None:
-    models_path = CONFIG_DIR / "models.yml"
-    models = read_json(models_path)
-    providers = models.get("providers") if models else None
-    if isinstance(providers, dict) and PROVIDER in providers:
-        del providers[PROVIDER]
-        if providers:
-            models_path.write_text(json.dumps(models))
-        else:
-            models_path.unlink()
-
-    config_path = CONFIG_DIR / "config.yml"
-    settings = read_json(config_path)
-    roles = settings.get("modelRoles") if settings else None
-    if isinstance(roles, dict):
-        kept = {
-            role: model
-            for role, model in roles.items()
-            if not (isinstance(model, str) and model.startswith(f"{PROVIDER}/"))
-        }
-        if kept != roles:
-            if kept:
-                settings["modelRoles"] = kept
-                config_path.write_text(json.dumps(settings))
-            else:
-                settings.pop("modelRoles", None)
-                if settings:
-                    config_path.write_text(json.dumps(settings))
-                else:
-                    config_path.unlink()
+    if os.environ.get("WONTON_AGENT_MODEL_SOURCE") != "official":
+        raise ValueError("只有显式选择官方订阅后才能清除 magpie 配置")
+    method = os.environ.get("WONTON_AGENT_LOGIN_ID", "")
+    provider = SUBSCRIPTIONS.get(method)
+    if provider is None:
+        raise ValueError("未选择受支持的官方订阅登录方式")
+    # Do not restore custom models/keys. Successful upstream OAuth login has
+    # already stored the subscription in agent.db; that store is left intact.
+    (CONFIG_DIR / "models.yml").unlink(missing_ok=True)
+    write_settings(provider, {})
 
 
 def main() -> None:

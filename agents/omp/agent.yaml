@@ -1,29 +1,31 @@
 id: ai.omp.agent
-version: 0.1.5
+version: 0.1.6
 title: { zh: AI 编程助手（omp）, en: Coding Bot (omp) }
 description:
-  zh: 自带工具很全的编程助手（做计划、记性好、读得懂代码结构）：先列计划再动手，跑命令前弹卡片问你。直接用模型设置就行，也能用它自己的方式登录模型账号。
-  en: "A coding bot packed with built-in tools (planning, memory, code understanding): it plans before it works and asks with a card before running commands. Works with your Models setup, or sign in to a model account its own way."
+  zh: 自带工具的编程助手：先列计划，跑命令前弹卡片确认。默认使用 magpie 模型网关，也能明确选择受支持的官方订阅登录。
+  en: "A coding bot with built-in tools: it plans first and asks before running commands. Uses magpie by default, with explicit supported official subscription sign-in."
 about:
   zh: |
-    omp 是一个编程 AI，住进你的聊天里。默认用模型设置里配好的 AI，不用账号、不用填 key；没配好也能用：
-    在聊天里发 /wonton login，用它自己的官方登录——模型账号（链接发进聊天，浏览器里授权后把跳转地址或
-    授权码发回来）或直接填模型的 key。
+    omp 是一个编程 AI，住进你的聊天里。默认使用 magpie 模型网关；网关未就绪时会明确报错，不会改用其他来源。
+    在聊天里发 /wonton login，可明确选择 ChatGPT、GitHub Copilot、Kimi Code、GitLab Duo、Factory Droid、
+    Muse Code、Grok、Cursor 或 Perplexity 的官方订阅登录，或切回 magpie。不提供自填模型 key 或地址的入口。
 
     会话按 plan 模式跑：动工作区之前先出计划，跑命令前经确认卡片问你；Wonton 插件的工具从聊天里调。
     和它的对话是核心建的加密私聊，重启后接着聊。
   en: |
-    omp is a coding AI living in your chat. By default it uses the AI set up in Models — no account,
-    no key. Without that it still works: send /wonton login in the chat and use its own sign-in — a
-    model account (a link is posted to the chat; after authorizing in the browser, send back the
-    redirect address or code) or a model key.
+    omp is a coding AI living in your chat. It uses magpie by default and reports an unready gateway
+    instead of switching sources. Send /wonton login to explicitly select an official ChatGPT,
+    GitHub Copilot, Kimi Code, GitLab Duo, Factory Droid, Muse Code, Grok, Cursor or Perplexity subscription,
+    or switch back to magpie. There is no model API-key or custom-endpoint login entry.
 
     Sessions run in plan mode: it drafts a plan before touching the workspace and asks through confirmation
     cards before running commands; Wonton plugin tools are called from the chat.
     The chat is an encrypted direct message the core creates, and it carries on after a restart.
 release_notes:
-  zh: AI 正忙时你接着发的消息会直接递给它，不用等这一轮做完；能收图片和文件。
-  en: Messages you send while the AI is busy now reach it right away instead of waiting for the turn to end; it can take images and files.
+  zh: 模型默认走 magpie，未就绪时明确提示；官方订阅须主动选择，移除了自填模型 key 的登录入口。
+  en: Models use magpie by default with clear readiness errors. Official subscriptions require an explicit selection; model API-key login has been removed.
+  zh-Hant: 模型預設走 magpie，未就緒時明確提示；官方訂閱須主動選擇，移除了自行填寫模型 key 的登入入口。
+  ja: モデルは既定で magpie を使い、未準備なら明確に通知します。公式サブスクリプションは明示的に選択し、モデル API キー入力のログイン入口は廃止しました。
 license: MIT
 notices: [NOTICE, image/LICENSE.omp]
 homepage: https://omp.sh
@@ -31,5 +33,23 @@ tags: { zh: [AI, 开发], en: [AI, Development] }
 acp_mode: plan
 memory: 1G
 login:
-  - id: terminal
-    title: { zh: 模型账号登录, en: Model account sign-in }
+  - id: openai-codex-device
+    title: { zh: ChatGPT 订阅登录, en: ChatGPT subscription sign-in }
+  - id: github-copilot
+    title: { zh: GitHub Copilot 订阅登录, en: GitHub Copilot subscription sign-in }
+  - id: kimi-code
+    title: { zh: Kimi Code 订阅登录, en: Kimi Code subscription sign-in }
+  - id: gitlab-duo-agent
+    title: { zh: GitLab Duo 订阅登录, en: GitLab Duo subscription sign-in }
+  - id: factory-droid
+    title: { zh: Factory Droid 订阅登录, en: Factory Droid subscription sign-in }
+  - id: muse-code
+    title: { zh: Muse Code 订阅登录, en: Muse Code subscription sign-in }
+  - id: xai-oauth
+    title: { zh: Grok 订阅登录, en: Grok subscription sign-in }
+  - id: cursor
+    title: { zh: Cursor 订阅登录, en: Cursor subscription sign-in }
+  - id: perplexity
+    title: { zh: Perplexity 订阅登录, en: Perplexity subscription sign-in }
+  - id: magpie
+    title: { zh: magpie 模型网关, en: magpie model gateway }

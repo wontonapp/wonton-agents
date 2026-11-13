@@ -1,27 +1,31 @@
 id: ai.kimi-code
-version: 0.1.3
+version: 0.1.4
 title: { zh: AI 编程助手（Kimi Code）, en: Coding Bot (Kimi Code) }
 description:
-  zh: Kimi（月之暗面）家的编程助手：读代码、改文件、跑命令，改文件和跑命令前都会出确认卡，你同意才执行。直接用模型设置就行，也能用 Kimi 账号登录。
-  en: "Kimi's coding bot from Moonshot AI: it reads code, edits files and runs commands, asking with a confirmation card before edits and commands. Works with your Models setup, or sign in with a Kimi account."
+  zh: Kimi（月之暗面）家的编程助手：读代码、改文件、跑命令，改文件和跑命令前都会出确认卡，你同意才执行。默认用 magpie，也可明确选择 Kimi 官方订阅。
+  en: "Kimi's coding bot from Moonshot AI: it reads code, edits files and runs commands, asking with a confirmation card before edits and commands. Uses magpie by default, or an explicitly selected Kimi subscription."
 about:
   zh: |
     Kimi Code 是月之暗面（Kimi）家的编程 AI。装进云吞后，它在和你的私聊里干活：读代码、改文件、
     跑命令；改文件和跑命令前都会出确认卡，你同意才执行。
 
-    模型默认走 Wonton 的模型网关，不用自己的账号；也可以用自己的 Kimi 账号（设备码登录）
-    或 Kimi 开放平台的 API key。插件页有登录网页，聊天里 /wonton login 也行。
+    模型默认走 magpie 模型网关，不用自己的账号；网关未就绪会报错，不会自动改连已有账号或旧 key。
+    在插件页的登录网页或聊天里 /wonton login 明确完成 Kimi 账号设备码登录后，才使用官方订阅，
+    即使网关可用也不会自动切回；选“magpie 模型网关”可切回网关。不提供开放平台 API key 登录。
   en: |
     Kimi Code is Moonshot AI's coding AI. In Wonton it works in your private chat: it reads
     code, edits files and runs commands, asking with a confirmation card before edits and
     commands.
 
-    Model requests go through the Wonton model gateway by default, no account needed; you can
-    also log in with your own Kimi account (device code) or a Kimi Platform API key. The plugin
-    page has a login web UI; /wonton login in chat works too.
+    Model requests use magpie by default. An unavailable gateway reports an error, without falling
+    back to saved accounts or keys. Explicitly complete Kimi account device-code sign-in through
+    the plugin login page or /wonton login to use the official subscription independently of the
+    gateway. Select magpie to return. Platform API-key login is not offered.
 release_notes:
-  zh: 修正会话模式：之前处于只读的 plan 模式，改文件、跑命令都不执行；现在改文件、跑命令前会先出确认卡征求同意。
-  en: "Fixed the session mode: it used to be read-only plan, where edits and commands never ran; it now asks with a confirmation card before edits and commands."
+  zh: 模型默认走 magpie；明确完成 Kimi 订阅登录才使用官方账号。网关出错不再自动换来源，移除开放平台 API key 登录，统一主模型和子代理模型。
+  en: Models use magpie by default; explicit Kimi subscription sign-in selects the official account. Gateway errors no longer change sources. Platform API-key login was removed, and primary and subagent models now share the selected source.
+  zh-Hant: 模型預設走 magpie；明確完成 Kimi 訂閱登入才使用官方帳號。網關出錯不再自動換來源，移除開放平台 API key 登入，統一主模型與子代理模型。
+  ja: モデルは既定で magpie を利用し、Kimi サブスクリプションへの明示的なログイン時のみ公式アカウントを使います。ゲートウェイのエラーで接続先を変えず、API キーログインを削除し、メインとサブエージェントのモデルを統一しました。
 license: MIT
 notices: [NOTICE]
 homepage: https://github.com/wontonapp/wonton-agents
@@ -31,6 +35,6 @@ memory: 512M
 login:
   - id: kimi-account
     title: { zh: Kimi 账号（设备码）, en: Kimi account (device code) }
-  - id: platform-key
-    title: { zh: Kimi 开放平台 API key, en: Kimi Platform API key }
+  - id: magpie
+    title: { zh: magpie 模型网关, en: magpie model gateway }
 webui: true

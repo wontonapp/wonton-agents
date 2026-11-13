@@ -20,24 +20,23 @@ Wonton 的 ACP Agent 插件（Codex、omp、Claude Code、Kimi……）共用这
 2. **装 skill 和系统提示**（`[skills]`/`[prompt]`，可选）：把镜像里
    `/usr/local/share/wonton-agent/skills/*` 和 `prompt.md` 拷到 agent.toml 指定的目录，
    每次启动覆盖，跟着插件版本走。
-3. **模型网关**（`[gateway]`，可选）：核心总会注入 `WONTON_MODEL_BASE_URL`、
-   `WONTON_MODEL_API_KEY`、`WONTON_MODEL_DEFAULT`（没接网关时是空字符串，网关就绪后核心
-   重建容器并注入值）。三个变量都有值时调钩子 `apply`，任一为空调 `clear`。
-   `[gateway.env]`（可选）把这些值按 `目标变量 = 来源变量` 加进 `[acp]` 子进程的环境，
-   详见「模型网关钩子」。
+3. **模型来源**（`[gateway]`，可选）：默认使用 magpie。三个 `WONTON_MODEL_*` 都有值才调
+   `apply`；缺变量时不调 `clear`，保留登录控制通道，模型会话报未就绪且不启动上游程序。
+   只有主人选择的官方订阅登录成功才调 `clear`；网关可用性和旧凭据都不改变选择。
+   `[gateway.env]` 只把映射值加进网关模式的 ACP 子进程，详见「模型网关钩子」。
 4. **启动 ACP 转发**：在 `$WONTON_ACP_SOCKET`（默认 `/data/run/acp.sock`）监听；每个连接
    起一次 `[acp] command`（stdio 说 ACP）双向转发，连接断了杀掉子进程；转发时去掉终端
    配色码（`[acp] strip_ansi = false` 可关）；子进程 stderr 直接进容器日志。
 5. **终端登录**（`[[login]]`，可选）：配了才有。initialize 应答里的 authMethods 改写成这些
    终端登录，并在 `<ACP socket 去掉扩展名>.login.sock`（默认 `/data/run/acp.login.sock`）
-   跑登录进程；登录成功后入口自己退出，容器按 restart 策略重启，钩子按新登录态重新选路。
+   跑登录进程；退出码 0 才保存显式选择并重启容器，失败或取消不切换来源。
 6. **登录网页**（`[web]`，可选）：配了才有。在 `0.0.0.0:<port>` 起一个登录页面，插件清单把
    它声明成 `webui`（核心网关挡在前面，从 App 的插件页打开）：列出 `[[login]]` 和状态
    （`status` 命令），点登录看输出、回一行、取消。和登录 socket 共用一把串行锁，一次一个。
 
-socket 在前面几步全部成功之后才建，compose 的健康检查以 socket 文件为准——socket 不存在
-就是还没就绪（首启下载 CLI 可能要几分钟），桥和核心会重试。`[acp]`/`[[login]]` 命令的可执行文件
-在监听之前就校验，起不来直接退出，健康检查不会带着坏配置变绿。
+ACP socket 表示控制通道就绪，不承诺模型可用。缺网关时 `initialize` 如实提供可用的登录
+入口，建会话或请求模型返回 `not_ready` 原因，不启动上游 CLI。CLI 安装或配置错误仍使
+启动失败；`[acp]`/`[[login]]` 的可执行文件在监听前校验。
 
 ## agent.toml
 
@@ -116,14 +115,20 @@ initialize 应答里的 authMethods 会改成这些登录（`type` 都是 `termi
 [[login]]
 id = "chatgpt"                         # /wonton login <id> 用它；字母数字点下划线连字符，不重复
 name = "ChatGPT 账号（设备码）"          # 聊天里列出的名字
+model_source = "official"             # 成功后显式选择官方订阅；不从凭据是否存在猜模式
 command = ["/usr/local/bin/codex", "login", "--device-auth"]
 stdin = "lines"                        # 缺省 lines：桥发的每行原样转给进程。
                                        # line_then_eof：转第一行后关 stdin（读 stdin 到 EOF 才
                                        # 收 key 的 CLI）；桥照旧保持连接收输出。
 restart_on_success = true              # 缺省 true：退出码 0 时回完 exit 帧等 2 秒入口退出，
-                                       # 容器按 restart 策略重启，钩子按新登录态重新选路
+                                       # 容器按 restart 策略重启，按保存的显式选择应用配置
 status = ["codex", "login", "status"]  # 可选：状态命令，退出码 0 = 已登录，非 0 = 没登录；
                                        # 登录网页的列表显示用，没写就显示"不确定"，不猜
+
+[[login]]
+id = "magpie"
+name = "magpie 模型网关"
+model_source = "gateway"              # 内建选择：不写 command/status，清除官方来源选择后重启
 ```
 
 入口同时在 `<ACP socket 去掉扩展名>.login.sock`（默认 `/data/run/acp.login.sock`，0600）
@@ -133,8 +138,10 @@ status = ["codex", "login", "status"]  # 可选：状态命令，退出码 0 = �
 `{"out"}`/`{"err"}`（不完整的一行等 200 毫秒没有新字节就先发：Claude Code 的
 `Paste code here if prompted > ` 这类不带换行的提示不用等下一次输出），输出收完回
 `{"exit": 数字}`。桥断开时登录进程被收掉（stdin 关掉等
-2 秒，terminate 2 秒，kill）；登录串行，一次一个。没有 `[[login]]` 时登录 socket 不建，
-Agent 自己的 agent 类登录照旧走 ACP authenticate。
+2 秒，terminate 2 秒，kill）；登录串行，一次一个。来源保存在 Bot 的
+`$HOME/.wonton-model-source`，内容是成功选择的官方登录 id；缺文件就是网关模式。
+无 `model_source` 的普通登录不改变模型来源。不声明登录的网关 Agent 也不会透传上游
+API key 登录方式。桥仍只传 `methodId`、`args`、`env`，不需要专有的选路字段。
 
 ### 登录网页：[web]
 
@@ -162,10 +169,15 @@ x-wonton:
 
 ## 模型网关钩子
 
-钩子是子镜像提供的可执行文件，底座带着全部环境变量调它：
+钩子是子镜像提供的可执行文件，底座计算并传入
+`WONTON_AGENT_MODEL_SOURCE=gateway|official` 和 `WONTON_AGENT_LOGIN_ID`：
 
-- `apply`：三个 `WONTON_MODEL_*` 变量都有值。钩子把网关写进这个 Agent 的配置。
-- `clear`：任一变量为空。钩子把网关从配置里移出去。
+- `apply`：选择网关且三个 `WONTON_MODEL_*` 都有值，将主、辅助模型统一指向 magpie。
+- `clear`：保存的选择是配置中声明的官方订阅登录，移除网关覆盖，不恢复外部 API 配置。
+- 缺变量：不调用钩子、不改为其他 provider，模型会话明确报未就绪；登录通道保留。
+
+协议专用地址可写在 `[gateway] required_env` 列表，例如 Anthropic 的
+`["WONTON_MODEL_ANTHROPIC_BASE_URL"]`；缺这些变量与缺公共变量一样处理。
 
 **密钥规则**：配置里只引用变量名（如 `env_key = "WONTON_MODEL_API_KEY"`），值留在环境变量里；
 Agent 不支持从环境变量读时才把值写进文件，且文件权限 0600。钩子非零退出、不可执行，
@@ -173,10 +185,9 @@ Agent 不支持从环境变量读时才把值写进文件，且文件权限 0600
 
 **Agent 配置不展开 `${VAR}` 时用 `[gateway.env]`**：有的 Agent（Claude Code）的配置文件
 不展开 `${VAR}`，钩子只好把 key 的值写进文件。给 `[gateway]` 加可选的 `env` 表，
-`目标变量 = 来源变量`，网关接好（三个 `WONTON_MODEL_*` 都有值，和钩子 `apply` 同一个条件）
-时底座把解析出来的值加进 `[acp]` 子进程的环境，`[[login]]` 子进程不加；没接网关或变量不全
-（钩子 `clear`）时不加。映射的来源变量没值，入口启动即报错。钩子于是可以只往配置里写
-变量名，key 依旧不落盘：
+`目标变量 = 来源变量`。只在网关模式把解析后的值加进 `[acp]` 子进程，`[[login]]`
+子进程不加；官方订阅模式不注入。公共变量、协议变量或映射来源缺失时拒绝启动模型，
+不会继承外部 key/地址来补缺。钩子于是可以只往配置里写变量名：
 
 ```toml
 [gateway]

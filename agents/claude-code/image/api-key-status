@@ -1,3 +1,0 @@
-#!/bin/sh
-# API key 登录的状态：存着非空的 key 就是已登录（退出码 0）。
-test -s "$HOME/.claude/api-key"

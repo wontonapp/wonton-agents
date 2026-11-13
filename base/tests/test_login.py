@@ -13,7 +13,7 @@ from unittest import mock
 
 import support
 
-from wonton_agent import config as paths, login, relay
+from wonton_agent import config as paths, gateway, login, model_source, relay
 ECHO_CHILD = Path(__file__).parent / "echo_child.py"
 LOGIN_CHILD = Path(__file__).parent / "login_child.py"
 
@@ -298,6 +298,75 @@ class LoginTests(unittest.IsolatedAsyncioTestCase):
             self.exit_mock.assert_not_called()
         finally:
             await self.stop_serve(serve_task)
+
+
+    async def test_missing_gateway_keeps_login_but_never_starts_model(self):
+        marker = self.tmp / "model-started"
+        method = {"id": "subscription", "name": "Subscription", "model_source": "official",
+                  "command": [sys.executable, str(LOGIN_CHILD), "exit", "0"]}
+        config = {
+            "acp": {"command": [sys.executable, "-c",
+                                f"from pathlib import Path; Path({str(marker)!r}).touch()"]},
+            "gateway": {"hook": "/unused"}, "login": [method],
+        }
+        with mock.patch.dict(os.environ, dict.fromkeys(gateway.GATEWAY_ENV, "")):
+            serve_task = await self.start_serve(config)
+            try:
+                reader, writer = await asyncio.open_unix_connection(str(paths.SOCKET))
+                writer.write(b'{"jsonrpc":"2.0","id":1,"method":"initialize"}\n')
+                await writer.drain()
+                initialized = await self.read_frame(reader)
+                self.assertEqual([m["id"] for m in initialized["result"]["authMethods"]],
+                                 ["subscription"])
+                writer.write(b'{"jsonrpc":"2.0","id":2,"method":"session/new","params":{}}\n')
+                await writer.drain()
+                reply = await self.read_frame(reader)
+                self.assertEqual(reply["error"]["data"]["category"], "not_ready")
+                self.assertFalse(marker.exists())
+                writer.close()
+                login_reader, login_writer = await self.connect_login()
+                await self.send_request(login_writer, "subscription")
+                self.assertEqual(await self.read_frame(login_reader), {"exit": 0})
+                self.assertEqual(model_source.official_login(config), "subscription")
+                login_writer.close()
+            finally:
+                await self.stop_serve(serve_task)
+
+    async def test_failed_subscription_login_keeps_previous_source(self):
+        paths.WORKSPACE.mkdir(parents=True)
+        previous = {"id": "previous", "model_source": "official"}
+        model_source.select(previous)
+        method = {"id": "replacement", "model_source": "official",
+                  "command": [sys.executable, str(LOGIN_CHILD), "exit", "7"]}
+        session = login.LoginSession(method)
+        await session.start()
+        await asyncio.wait_for(session.exited.wait(), 5)
+        self.assertEqual(session.exit_code, 7)
+        self.assertEqual(model_source.official_login({"login": [previous, method]}), "previous")
+
+    async def test_explicit_magpie_choice_stops_using_official_credentials(self):
+        method = {"id": "subscription", "model_source": "official"}
+        model_source.select(method)
+        session = login.LoginSession({"id": "magpie", "model_source": "gateway"})
+        await session.start()
+        await asyncio.wait_for(session.exited.wait(), 5)
+        self.assertEqual(session.exit_code, 0)
+        self.assertIsNone(model_source.official_login({"login": [method]}))
+        with mock.patch.dict(os.environ, dict.fromkeys(gateway.GATEWAY_ENV, "")):
+            with self.assertRaises(model_source.ModelNotReady):
+                gateway.acp_env({"gateway": {"hook": "/unused"}, "login": [method]})
+
+
+    async def test_cancelled_official_login_does_not_change_source(self):
+        paths.WORKSPACE.mkdir(parents=True)
+        method = {"id": "subscription", "model_source": "official",
+                  "command": [sys.executable, str(LOGIN_CHILD), "echo", "1"]}
+        session = login.LoginSession(method)
+        await session.start()
+        await session.close_input()
+        await asyncio.wait_for(session.exited.wait(), 5)
+        self.assertEqual(session.exit_code, 130)
+        self.assertIsNone(model_source.official_login({"login": [method]}))
 
 
 if __name__ == "__main__":

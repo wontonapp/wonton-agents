@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-"""模型网关钩子：把网关写进 Codex 的 config.toml（apply），网关不在时清掉（clear）。
-
-底座带全部环境变量调它：三个 WONTON_MODEL_* 都有值时 apply，任一为空时 clear。
-config.toml 每次整份重写：网关后来接入或被卸掉时，重启容器就切换，不会留着指向旧地址的配置。
+"""网关模式只连 magpie；clear 只用于主人成功选择的 ChatGPT 订阅。
+不从 auth.json 的旧 token 或 API key 推断模型来源。
 """
 
 import json
@@ -33,16 +31,7 @@ def fail(message: str) -> None:
 
 
 def toml_string(value: str) -> str:
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
-
-
-def has_own_auth() -> bool:
-    """auth.json 里有 ChatGPT 登录态或用户自己的 API key：模型请求发官方，不经网关。"""
-    try:
-        auth = json.loads((CODEX_HOME / "auth.json").read_text())
-    except (OSError, ValueError):
-        return False
-    return "tokens" in auth or auth.get("OPENAI_API_KEY")
+    return json.dumps(value, ensure_ascii=False)
 
 
 def write_catalog(path: Path, model: str) -> None:
@@ -78,7 +67,10 @@ def main() -> None:
     CODEX_HOME.mkdir(parents=True, exist_ok=True)
     catalog = CODEX_HOME / "model-catalog.json"
 
-    if action == "apply" and not has_own_auth():
+    if action == "apply":
+        required = ("WONTON_MODEL_DEFAULT", "WONTON_MODEL_BASE_URL", "WONTON_MODEL_API_KEY")
+        if not all(os.environ.get(name, "").strip() for name in required):
+            fail("magpie 模型网关未就绪：缺少模型配置，不会改连官方")
         model = os.environ["WONTON_MODEL_DEFAULT"].strip()
         base_url = os.environ["WONTON_MODEL_BASE_URL"].strip()
         try:
@@ -86,13 +78,15 @@ def main() -> None:
         except OSError as error:
             fail(f"写不下模型目录 {catalog}：{error}")
         config = f"""\
-# 由网关钩子管理，手改会被覆盖：模型请求经 Wonton 模型网关。
-{POSTURE}model_provider = "wonton"
+# 由网关钩子管理，手改会被覆盖：模型请求经 magpie。
+{POSTURE}forced_login_method = "api"
+model_provider = "wonton"
 model = {toml_string(model)}
+review_model = {toml_string(model)}
 model_catalog_json = {toml_string(str(catalog))}
 
 [model_providers.wonton]
-name = "Wonton"
+name = "magpie"
 base_url = {toml_string(base_url)}
 # 密钥只在环境变量里（底座把 WONTON_MODEL_API_KEY 解析进 ACP 子进程环境），不落盘。
 env_key = "OPENAI_API_KEY"
@@ -100,11 +94,11 @@ wire_api = "responses"
 
 """
     else:
-        # 没接网关（clear），或已有官方登录态（apply 但 auth.json 里有登录态）：不写
-        # 网关配置，也清掉上次留下的模型目录；Codex 走内置 openai provider 和自己的
-        # 登录态，没有登录态时 prompt 返回 auth_required，桥转成“要先登录”的提示。
+        if os.environ.get("WONTON_AGENT_MODEL_SOURCE") != "official":
+            fail("magpie 模型网关未就绪：未显式选择 ChatGPT 订阅，不能清除网关配置")
         catalog.unlink(missing_ok=True)
-        config = f"# 由网关钩子管理，手改会被覆盖。\n\n{POSTURE}"
+        config = (f"# 由模型来源选择管理，手改会被覆盖。\n\n{POSTURE}"
+                  'model_provider = "openai"\nforced_login_method = "chatgpt"\n')
 
     (CODEX_HOME / "config.toml").write_text(config, encoding="utf-8")
 

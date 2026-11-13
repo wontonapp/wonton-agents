@@ -2,7 +2,7 @@
 # 适配器打进镜像（Apache-2.0 的开源 npm 包，Dockerfile 按摘要装）：bin 是
 # dist/index.js，shebang 走容器里的 node。CODEX_PATH 不设：适配器自己从同目录的
 # node_modules 解析 @openai/codex/bin/codex.js 当 CLI（登录和 app-server 都是）。
-command = ["/opt/codex-acp/dist/index.js"]
+command = ["/usr/local/lib/wonton-agent/acp"]
 
 [skills]
 target = "~/.agents/skills"
@@ -19,18 +19,15 @@ OPENAI_API_KEY = "WONTON_MODEL_API_KEY"
 [web]
 port = 8080
 
-# 官方账号登录：Codex 自己的程序里完成，链接和设备码由桥发进聊天（容器里没有
-# 浏览器）。--with-api-key 读 stdin 到 EOF 才收 key，用 line_then_eof：桥发一行
-# 后底座替它关 stdin。status 的退出码 0 = 已登录，登录网页列表显示用。
+# 仅在主人选择且设备码登录成功后，底座才记为官方订阅模式。
 [[login]]
 id = "chatgpt"
 name = "ChatGPT 账号（设备码）"
-command = ["/opt/codex-acp/node_modules/@openai/codex/bin/codex.js", "login", "--device-auth"]
-status = ["/opt/codex-acp/node_modules/@openai/codex/bin/codex.js", "login", "status"]
+model_source = "official"
+command = ["/opt/codex-acp/node_modules/@openai/codex/bin/codex.js", "-c", 'forced_login_method="chatgpt"', "login", "--device-auth"]
+status = ["/usr/local/lib/wonton-agent/auth-status"]
 
 [[login]]
-id = "api-key"
-name = "OpenAI API key"
-command = ["/opt/codex-acp/node_modules/@openai/codex/bin/codex.js", "login", "--with-api-key"]
-stdin = "line_then_eof"
-status = ["/opt/codex-acp/node_modules/@openai/codex/bin/codex.js", "login", "status"]
+id = "magpie"
+name = "magpie 模型网关"
+model_source = "gateway"

@@ -37,7 +37,7 @@ USER 65532:65532
 COPY agent.toml /etc/wonton-agent/
 # 容器即沙箱的托管约束（模式限制 + 写命令确认规则），见文件头注释和 README。
 COPY requirements.toml /etc/codex/requirements.toml
-COPY --chmod=0755 gateway /usr/local/lib/wonton-agent/
+COPY --chmod=0755 gateway acp auth-status /usr/local/lib/wonton-agent/
 # Codex 对目录外的模型要求完整模型元数据：这份 prompt.md（Codex 上游对未知模型的
 # 兜底指令）由网关钩子写进 model_catalog_json 的 base_instructions，见 NOTICE。
 COPY prompt.md /usr/local/share/wonton-agent/prompt.md

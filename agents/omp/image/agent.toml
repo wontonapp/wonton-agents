@@ -9,10 +9,66 @@ target = "~/.agents/skills"
 [gateway]
 hook = "/usr/local/lib/wonton-agent/gateway"
 
-# omp 只有一种终端登录：它的默认形态是全屏 TUI，行式转发跑不起来；omp login 是同一套官方
-# 登录的行式形态（选 provider、打印链接、收授权码和 key 都走 stdout/stdin），在聊天里
-# 完成。凭据写进 HOME 下的 agent.db，容器重建后还在。
+[gateway.env]
+LITELLM_API_KEY = "WONTON_MODEL_API_KEY"
+
+# Use pinned upstream provider arguments, never the unrestricted provider picker.
+# Device-code, polling and manual-only flows do not require a container callback.
 [[login]]
-id = "terminal"
-name = "模型账号登录"
-command = ["/usr/local/bin/omp", "login"]
+id = "openai-codex-device"
+name = "ChatGPT 订阅登录"
+model_source = "official"
+command = ["/usr/local/bin/omp", "login", "openai-codex-device"]
+
+[[login]]
+id = "github-copilot"
+name = "GitHub Copilot 订阅登录"
+model_source = "official"
+command = ["/usr/local/bin/omp", "login", "github-copilot"]
+
+[[login]]
+id = "kimi-code"
+name = "Kimi Code 订阅登录"
+model_source = "official"
+command = ["/usr/local/bin/omp", "login", "kimi-code"]
+
+[[login]]
+id = "gitlab-duo-agent"
+name = "GitLab Duo 订阅登录"
+model_source = "official"
+command = ["/usr/local/bin/omp", "login", "gitlab-duo-agent"]
+
+[[login]]
+id = "factory-droid"
+name = "Factory Droid 订阅登录"
+model_source = "official"
+command = ["/usr/local/bin/omp", "login", "factory-droid"]
+
+[[login]]
+id = "muse-code"
+name = "Muse Code 订阅登录"
+model_source = "official"
+command = ["/usr/local/bin/omp", "login", "muse-code"]
+
+[[login]]
+id = "xai-oauth"
+name = "Grok 订阅登录"
+model_source = "official"
+command = ["/usr/local/bin/omp", "login", "xai-oauth"]
+
+[[login]]
+id = "cursor"
+name = "Cursor 订阅登录"
+model_source = "official"
+command = ["/usr/local/bin/omp", "login", "cursor"]
+
+[[login]]
+id = "perplexity"
+name = "Perplexity 订阅登录"
+model_source = "official"
+command = ["/usr/bin/env", "PI_AUTH_NO_BORROW=1", "/usr/local/bin/omp", "login", "perplexity"]
+
+[[login]]
+id = "magpie"
+name = "magpie 模型网关"
+model_source = "gateway"

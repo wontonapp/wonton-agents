@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""网关钩子：底座带全部环境变量调它。apply 把模型网关写进 ~/.kimi-code/config.toml
-（default_model + providers.wonton + models.wonton/default），clear 移出去。
-密钥不落盘：providers.wonton 只写 apiKeyEnv，值留在环境变量里；不改 User-Agent。"""
+"""网关钩子：默认和子代理模型指向 magpie；官方模式保留订阅，不恢复平台 key。"""
 import sys
 
 sys.path.insert(0, "/usr/local/lib/wonton-agent")

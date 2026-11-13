@@ -1,5 +1,0 @@
-#!/bin/sh
-# 开放平台 API key 登录（[[login]] 的 command 指到这里）：读一行 key，先对平台验证
-# 再写进配置（kimi_config.py platform-set），输出默认模型；成功后容器按 restart 策略重启。
-read -r key || exit 1
-exec python3 /usr/local/lib/wonton-agent/kimi_config.py platform-set "$key"

@@ -15,7 +15,7 @@ from unittest import mock
 
 import support
 
-from wonton_agent import config as paths, login, relay, web
+from wonton_agent import config as paths, gateway, login, relay, web
 LOGIN_CHILD = Path(__file__).parent / "login_child.py"
 
 
@@ -321,6 +321,22 @@ class WebTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await self.request("GET", "/api/nothing"))[0], 404)
         finally:
             await self.stop_serve(serve_task)
+
+
+    async def test_gateway_selector_reports_missing_protocol_not_logged_in(self):
+        config = web_config([{"id": "magpie", "name": "magpie", "model_source": "gateway"}])
+        config["gateway"] = {"hook": "/unused", "required_env": ["AB_PROTOCOL_URL"]}
+        values = dict.fromkeys(gateway.GATEWAY_ENV, "present")
+        values["AB_PROTOCOL_URL"] = ""
+        with mock.patch.dict(os.environ, values):
+            serve_task = await self.start_serve(config)
+            try:
+                status, body = await self.request("GET", "/api/logins")
+                self.assertEqual(status, 200)
+                self.assertEqual(body["logins"][0]["status"], "not_ready")
+                self.assertIn("AB_PROTOCOL_URL", body["logins"][0]["detail"])
+            finally:
+                await self.stop_serve(serve_task)
 
 
 if __name__ == "__main__":

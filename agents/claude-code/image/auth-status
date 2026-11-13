@@ -1,26 +1,14 @@
 #!/usr/bin/env python3
-"""登录状态（订阅 / Console）：退出码 0 = 已登录。用 CLI 自己的 `auth status`，只看它报的 loggedIn 和
-登录方式；apiKeyHelper 存着 API key 时 CLI 会把 loggedIn 报成 false，正好区分开两种登录。
-网关接着时（网关钩子写进了 ANTHROPIC_AUTH_TOKEN）CLI 报的 oauth_token 是网关的 token，不是订阅
-登录；只有凭据库里存了真 OAuth（~/.claude/.credentials.json，oauth-login 写的）才算已登录。"""
+"""订阅登录状态；网关 token、API key 和 Console 登录不算订阅。"""
 import json
 import os
 import subprocess
 import sys
 
 ADAPTER = "/data/agent/tools/claude-agent-acp/0.101.0/dist/index.js"
-SETTINGS = os.path.expanduser("~/.claude/settings.json")
 CREDENTIALS = os.path.expanduser("~/.claude/.credentials.json")
 
 
-def gateway_token() -> bool:
-    """网关钩子是否接管了模型调用：settings 的 env 里有没有它写的 ANTHROPIC_AUTH_TOKEN。"""
-    try:
-        with open(SETTINGS, encoding="utf-8") as file:
-            env = json.load(file).get("env", {})
-    except (OSError, ValueError):
-        return False
-    return bool(env.get("ANTHROPIC_AUTH_TOKEN"))
 
 
 def real_oauth() -> bool:
@@ -28,7 +16,8 @@ def real_oauth() -> bool:
     空文件或别的凭据当成登录，要解析出键才算。"""
     try:
         with open(CREDENTIALS, encoding="utf-8") as file:
-            return "claudeAiOauth" in json.load(file)
+            oauth = json.load(file).get("claudeAiOauth", {})
+            return bool(oauth.get("accessToken")) and "user:inference" in oauth.get("scopes", [])
     except (OSError, ValueError):
         return False
 
@@ -43,10 +32,7 @@ def main() -> None:
         sys.exit(2)
     method = status.get("authMethod")
     # apiKeyHelper 存着 key 时 loggedIn 也是 true、authMethod 是 api_key_helper；那不是订阅登录。
-    if status.get("loggedIn") is True and method not in (None, "none", "api_key_helper", "api_key"):
-        if method == "oauth_token" and gateway_token() and not real_oauth():
-            print("没登录：模型调用走模型网关，这个 oauth_token 是网关的")
-            sys.exit(1)
+    if status.get("loggedIn") is True and real_oauth() and method not in (None, "none", "api_key_helper", "api_key"):
         print(f"已登录（{method}）")
         return
     print("没登录" if not status.get("loggedIn") else f"登录的是 {method}，不是订阅登录")

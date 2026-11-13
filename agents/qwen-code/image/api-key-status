@@ -1,3 +1,0 @@
-#!/bin/sh
-# API key 登录的状态：~/.qwen/.env 里存着非空的 OPENAI_API_KEY 就是已登录（退出码 0）。
-grep -qs '^OPENAI_API_KEY=..' "$HOME/.qwen/.env"

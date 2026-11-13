@@ -1,8 +1,9 @@
 # qwen-code 子镜像：qwen-code 0.27.2 是 Apache-2.0 的开源 npm 包（dependencies 为空，解包即用），
 # 按摘要打进镜像，容器首启不用再联网下载。官方 npm tgz 按 dist.integrity 的 sha512 核对，不符即失败。
-# 入口是底座的 wonton-agent，这里只放 qwen-code 本体、配置、网关钩子和登录脚本。
-# 底座按摘要固定，防镜像漂移；底座升级改这一行重新构建。登录网页的转发器（web-proxy）随底座。
-FROM ghcr.io/wontonapp/wonton-agent-base:0.1.1@sha256:1f66748aa0f30bae92496fabd35bebc35d9fb965762096b876a4b45c1ad2cab2
+# 入口是底座的 wonton-agent，这里只放 qwen-code 本体、配置和网关钩子。
+# 底座按摘要固定，防镜像漂移；底座升级改这一行重新构建。
+ARG BASE_IMAGE=ghcr.io/wontonapp/wonton-agent-base:0.1.1@sha256:1f66748aa0f30bae92496fabd35bebc35d9fb965762096b876a4b45c1ad2cab2
+FROM ${BASE_IMAGE}
 
 ARG QWEN_VERSION=0.27.2
 # npm dist.integrity 的 sha512-<base64>。
@@ -20,7 +21,7 @@ RUN curl --fail --silent --show-error --location --retry 5 --retry-delay 2 --ret
 USER 65532:65532
 
 COPY agent.toml /etc/wonton-agent/
-COPY --chmod=0755 gateway api-key-login api-key-status /usr/local/lib/wonton-agent/
+COPY --chmod=0755 gateway /usr/local/lib/wonton-agent/
 COPY qwen_settings.py /usr/local/lib/wonton-agent/
 COPY prompt.md /usr/local/share/wonton-agent/prompt.md
 # skill 目录 COPY 整棵树：COPY --chmod 会连自动创建的目录一起改（0644 会丢掉目录的 x 位）。

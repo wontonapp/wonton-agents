@@ -1,4 +1,4 @@
-"""模型网关钩子：变量都有值调 apply，任一为空调 clear；钩子收得到环境变量；失败要报错。"""
+"""网关缺失时不改路由，官方模式只由显式成功选择决定。"""
 import os
 import shutil
 import stat
@@ -11,7 +11,7 @@ from unittest import mock
 
 import support
 
-from wonton_agent import gateway as agent
+from wonton_agent import config as paths, gateway as agent, model_source
 
 
 def write_hook(directory: Path, body: str) -> Path:
@@ -26,6 +26,9 @@ class GatewayTests(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp(prefix="ab-gateway-"))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
         self.record = self.tmp / "record"
+        patch = mock.patch.object(paths, "AGENT_HOME", self.tmp / "home")
+        patch.start()
+        self.addCleanup(patch.stop)
 
     def run_gateway(self, config: dict, env: dict) -> str:
         # 不用 clear=True：清掉 PATH 会让钩子的 #!/usr/bin/env python3 找不到解释器；
@@ -46,23 +49,32 @@ class GatewayTests(unittest.TestCase):
         })
         self.assertEqual(action, "apply")
 
-    def test_empty_variable_clears(self):
+    def test_incomplete_gateway_never_calls_clear(self):
         hook = write_hook(self.tmp, f"from pathlib import Path\n"
                                     f"Path({str(self.record)!r}).write_text(sys.argv[1])\n")
-        action = self.run_gateway({"gateway": {"hook": str(hook)}}, {
-            "WONTON_MODEL_BASE_URL": "http://gateway.example.internal/v1",
-            "WONTON_MODEL_API_KEY": "",
-            "WONTON_MODEL_DEFAULT": "group/default",
-        })
-        self.assertEqual(action, "clear")
+        ready = dict.fromkeys(agent.GATEWAY_ENV, "present")
+        for name in agent.GATEWAY_ENV:
+            for empty in ("", "   "):
+                with self.subTest(name=name, empty=empty):
+                    with self.assertRaises(model_source.ModelNotReady):
+                        self.run_gateway({"gateway": {"hook": str(hook)}}, {**ready, name: empty})
+                    self.assertFalse(self.record.exists())
 
-    def test_missing_variable_clears(self):
+    def test_explicit_official_choice_is_independent_of_gateway(self):
+        method = {"id": "subscription", "model_source": "official"}
+        model_source.select(method)
         hook = write_hook(self.tmp, f"from pathlib import Path\n"
                                     f"Path({str(self.record)!r}).write_text(sys.argv[1])\n")
-        action = self.run_gateway({"gateway": {"hook": str(hook)}}, {
-            "WONTON_MODEL_BASE_URL": "http://gateway.example.internal/v1",
-        })
-        self.assertEqual(action, "clear")
+        config = {"gateway": {"hook": str(hook)}, "login": [method]}
+        for env in ({}, dict.fromkeys(agent.GATEWAY_ENV, "present")):
+            with self.subTest(env=bool(env)):
+                self.assertEqual(self.run_gateway(config, env), "clear")
+
+    def test_extra_protocol_variable_is_required(self):
+        hook = write_hook(self.tmp, "sys.exit(0)\n")
+        config = {"gateway": {"hook": str(hook), "required_env": ["AB_TEST_PROTOCOL_URL"]}}
+        with self.assertRaises(model_source.ModelNotReady):
+            self.run_gateway(config, dict.fromkeys(agent.GATEWAY_ENV, "present"))
 
     def test_hook_receives_variable_values(self):
         # 钩子从环境里拿网关配置，底座原样传下去。
@@ -106,7 +118,14 @@ class GatewayTests(unittest.TestCase):
 
 
 class AcpEnvTests(unittest.TestCase):
-    """[gateway.env]：网关接好才把映射的变量加进 [acp] 子进程环境，否则不加。"""
+    """网关映射不能因变量缺失而变成继承的官方配置。"""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="ab-env-")
+        self.addCleanup(temporary.cleanup)
+        patch = mock.patch.object(paths, "AGENT_HOME", Path(temporary.name))
+        patch.start()
+        self.addCleanup(patch.stop)
 
     def run_env(self, config: dict, env: dict) -> dict:
         # 缺省变量显式给空串，和核心注入空值的语义一致（照 GatewayTests.run_gateway）。
@@ -135,22 +154,26 @@ class AcpEnvTests(unittest.TestCase):
             "WONTON_MODEL_BASE_URL": "x", "WONTON_MODEL_API_KEY": "y", "WONTON_MODEL_DEFAULT": "z"})
         self.assertEqual(env, {})
 
-    def test_incomplete_gateway_variables_map_nothing(self):
-        env = self.run_env(
-            {"gateway": {"hook": "/x", "env": {"ANTHROPIC_AUTH_TOKEN": "WONTON_MODEL_API_KEY"}}},
-            {"WONTON_MODEL_BASE_URL": "x", "WONTON_MODEL_API_KEY": "", "WONTON_MODEL_DEFAULT": "z"})
-        self.assertEqual(env, {}, "钩子 clear 时子进程也不注入")
+    def test_incomplete_gateway_variables_reject_model_start(self):
+        with self.assertRaises(model_source.ModelNotReady):
+            self.run_env(
+                {"gateway": {"hook": "/x", "env": {"ANTHROPIC_AUTH_TOKEN": "WONTON_MODEL_API_KEY"}}},
+                {"WONTON_MODEL_BASE_URL": "x", "WONTON_MODEL_API_KEY": "", "WONTON_MODEL_DEFAULT": "z"})
 
-    def test_missing_source_variable_dies(self):
-        # 映射的来源变量没值：配置和实际环境对不上，报错退出，不静默跳过。
-        stderr = StringIO()
-        with redirect_stderr(stderr):
-            with self.assertRaises(SystemExit):
-                self.run_env(
-                    {"gateway": {"hook": "/x", "env": {"ANTHROPIC_AUTH_TOKEN": "AB_NO_SUCH_SOURCE"}}},
-                    {"WONTON_MODEL_BASE_URL": "x", "WONTON_MODEL_API_KEY": "y",
-                     "WONTON_MODEL_DEFAULT": "z"})
-        self.assertIn("AB_NO_SUCH_SOURCE", stderr.getvalue())
+    def test_missing_mapped_source_rejects_model_start(self):
+        with self.assertRaises(model_source.ModelNotReady):
+            self.run_env(
+                {"gateway": {"hook": "/x", "env": {"ANTHROPIC_AUTH_TOKEN": "AB_NO_SUCH_SOURCE"}}},
+                {"WONTON_MODEL_BASE_URL": "x", "WONTON_MODEL_API_KEY": "y",
+                 "WONTON_MODEL_DEFAULT": "z"})
+
+    def test_official_choice_does_not_receive_gateway_credentials(self):
+        method = {"id": "subscription", "model_source": "official"}
+        model_source.select(method)
+        env = self.run_env(
+            {"gateway": {"hook": "/x", "env": {"API_KEY": "WONTON_MODEL_API_KEY"}}, "login": [method]},
+            dict.fromkeys(agent.GATEWAY_ENV, "present"))
+        self.assertEqual(env, {})
 
 
 if __name__ == "__main__":

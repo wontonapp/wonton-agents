@@ -18,8 +18,8 @@ extra_check() {
   agent_check_restart agent bridge
   agent_check_resume 青杏
   agent_check_outsider
-  agent_check_login_web claudeai console api-key
-  agent_check_login claudeai,api-key 'https://(claude\.com/cai|platform\.claude\.com)/oauth/authorize'
+  agent_check_login_web claudeai magpie
+  agent_check_login claudeai 'https://(claude\.com/cai|platform\.claude\.com)/oauth/authorize'
 }
 
 web_assert() { # 标准输入：登录网页（底座 wonton-agent 的登录页，经 web 服务转发）。

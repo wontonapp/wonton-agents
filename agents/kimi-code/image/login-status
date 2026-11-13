@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""[[login]] status：退出码 0 = 已登录，非 0 = 没登录（登录网页的列表显示用）。
-kimi-account 看设备码登录的凭据文件（上游 FileTokenStorage 的位置），
-platform-key 看 config.toml 里的开放平台段（kimi_config.py 托管的标记行）。"""
-import os
+"""设备码订阅登录状态；凭据不决定模型来源。"""
+import json
 import sys
-from pathlib import Path
 
 sys.path.insert(0, "/usr/local/lib/wonton-agent")
 import kimi_config
@@ -13,10 +10,16 @@ method = sys.argv[1] if len(sys.argv) > 1 else ""
 kimi_home = kimi_config.home()
 
 if method == "kimi-account":
-    token = kimi_home / "credentials" / "kimi-code.json"
-    sys.exit(0 if token.is_file() and token.stat().st_size > 0 else 1)
-if method == "platform-key":
-    text = kimi_config.config_path().read_text(encoding="utf-8") if kimi_config.config_path().exists() else ""
-    sys.exit(0 if f"{kimi_config.BEGIN} PLATFORM" in text else 1)
+    provider = kimi_config.load().get("providers", {}).get(kimi_config.NATIVE_PROVIDER, {})
+    key = provider.get("oauth", {}).get("key", "oauth/kimi-code")
+    name = key.removeprefix("oauth/")
+    if not name or "/" in name or name.startswith("."):
+        sys.exit(1)
+    token = kimi_home / "credentials" / f"{name}.json"
+    try:
+        credentials = json.loads(token.read_text(encoding="utf-8"))
+        sys.exit(0 if credentials.get("access_token") and credentials.get("refresh_token") else 1)
+    except (OSError, ValueError, AttributeError):
+        sys.exit(1)
 print(f"未知的登录方式 {method}", file=sys.stderr)
 sys.exit(2)

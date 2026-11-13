@@ -9,15 +9,25 @@ Anthropic 的 Claude Code 编程 Agent，经官方 ACP 适配器（`@agentclient
 
 - `agent.yaml`：清单来源（id、版本、商店文字、登录方式、`acp_mode`、内存、环境变量），`docker-compose.yml` 由 `gen/` 生成
 - `image/agent.toml` + `image/Dockerfile`：子镜像的全部差异（装哪个 CLI、ACP 怎么启动、网关钩子、登录）
-- `image/gateway`：把 `WONTON_MODEL_*` 写进 Claude Code 的用户设置 `env`（`apply`），`clear` 按备份还原；密钥落盘的文件 0600
-- `image/oauth-login`、`auth-status`、`api-key-login`、`api-key`、`api-key-status`：三种终端登录；
-  `auth-status` 区分网关 token 和真 OAuth——网关接着时订阅/Console 如实显示「没登录」
-  （模型调用走网关），凭据库里存了真 OAuth（`~/.claude/.credentials.json` 的 `claudeAiOauth`）才算已登录
+- `image/gateway`：网关模式写入模型路由和各模型别名；官方模式删除外部 API 路由，不恢复旧备份，保留订阅凭据；设置文件 0600
+- `image/oauth-login`、`auth-status`：只提供 Claude 订阅 OAuth 登录，不提供 Console API 计费或 API key 登录
+- `image/acp-launch`：启动 ACP 前移除继承的外部模型、云 provider、API key 环境覆盖；工具和权限设置不变
 - `smoke-probes.sh`：冒烟探针
 
-模型有两个来源，每次容器启动时选定：接上模型网关（要提供 Anthropic Messages 接口）时默认走网关，
-不用账号；没接时用登录态（三种方式：Claude 订阅、Anthropic Console、API key）。Claude Code 只讲
-Anthropic Messages，OpenAI 兼容地址喂不进去，网关没有 Anthropic 接口时按没接网关处理。
+默认使用 magpie 模型网关，且必须提供 `WONTON_MODEL_ANTHROPIC_BASE_URL`。缺少配置时明确报“未就绪”，
+不清除路由、不启动模型会话，也不因旧 token/key 自动切来源。登录控制仍可使用。
+在登录网页或 `/wonton login` 明确完成 Claude 订阅登录，底座才持久化官方来源；即使网关可用也保持官方模式。
+选择“magpie 模型网关”可切回。官方清除要求底座传入 `WONTON_AGENT_MODEL_SOURCE=official`，不恢复旧 API 设置。
+
+## 上游切换入口与边界
+
+网关启动时将主模型、Haiku/Sonnet/Opus/Fable 别名、小任务和子代理模型统一指向网关默认模型，
+移除用户设置中的 API key helper、外部 provider 和旧模型覆盖，并设置 `availableModels`。
+依据 [模型配置](https://code.claude.com/docs/en/model-config) 的模型白名单缩小上游模型选择；
+这些用户设置不是网络级隔离，项目/托管设置及运行中的 ACP 模型切换仍由上游处理。
+[认证文档](https://code.claude.com/docs/en/authentication) 说明 `forceLoginMethod` 在终端交互登录只预选而不强制：
+上游 `/login` 仍可能提供 Console/provider 选项，插件不修改上游，也不把这些路径列为支持的接法。
+订阅登录命令固定 `auth login --claudeai`；网关凭据不代表订阅登录。
 
 ## 实测记录
 
