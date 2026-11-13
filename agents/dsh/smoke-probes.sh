@@ -20,7 +20,7 @@ extra_check() {
 }
 
 # shellcheck disable=SC1091 # 助手文件在 agents/ 下，不在 CI 的 shellcheck 输入里；agents/probe-helpers.sh 单独过 shellcheck
-. "$(dirname "${BASH_SOURCE[0]}")/../probe-helpers.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../probe-helpers.sh" # 容器定位助手，agents 各家共用
 
 _dsh_marker_file() {
   if [[ -d "${SMOKE_STATE:-}" ]]; then printf '%s/data-marker' "$SMOKE_STATE"; else printf '%s' "${SMOKE_STATE:-}"; fi
