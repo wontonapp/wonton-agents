@@ -22,16 +22,12 @@ extra_check() {
 }
 
 # 数据探针把标记写进 agent 容器的数据卷（HOME，agent.db 和会话也在那里），验证重装不丢。
-# 核心给容器名带 Bot 后缀（--default），按前缀找。
-agent_container() {
-  docker ps --format '{{.Names}}' |
-    grep "^wonton-$SMOKE_INSTANCE--${SMOKE_PLUGIN_ID//./-}--agent" | head -1
-}
+# shellcheck disable=SC1091 # 助手文件在 agents/ 下，不在 CI 的 shellcheck 输入里；agents/probe-helpers.sh 单独过 shellcheck
+. "$(dirname "${BASH_SOURCE[0]}")/../probe-helpers.sh" # 容器定位助手，agents 各家共用
 
 agent_exec() {
   local container
-  container="$(agent_container)" ||
-    { echo "找不到 agent 容器（wonton-$SMOKE_INSTANCE--${SMOKE_PLUGIN_ID//./-}--agent*）"; return 1; }
+  container="$(bot_service_container agent)" || return 1
   docker exec "$container" "$@"
 }
 
