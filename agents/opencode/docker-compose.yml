@@ -4,7 +4,7 @@
 # agent，agent 的 HOME 不给 bridge。
 services:
   agent:
-    image: ghcr.io/wontonapp/wonton-agents/opencode:0.1.3
+    image: ghcr.io/wontonapp/wonton-agents/opencode:0.1.3@sha256:b6319af2cc10868b6762bc043d85f328f97c072f1e11bf5a4a63d7d63295f0e2
     # 底座镜像固定用 65532，入口不再降权；bridge 挂同一个 run/ 目录，两个服务的属主必须相同。
     user: "65532:65532"
     restart: unless-stopped
