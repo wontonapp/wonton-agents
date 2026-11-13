@@ -7,7 +7,7 @@ import shutil
 import socket
 from pathlib import Path
 
-from . import config, gateway, login, log, web
+from . import config, gateway, login, log, model_source, not_ready, web
 
 
 def rewrite_auth_methods(line: str, methods: list[dict]) -> str:
@@ -40,13 +40,13 @@ async def relay(client: socket.socket, process: asyncio.subprocess.Process,
 
     async def agent_to_socket() -> None:
         while line := await process.stdout.readline():
-            if not (strip_ansi or methods):
+            if not strip_ansi and methods is None:
                 await loop.sock_sendall(client, line)
                 continue
             text = line.decode(errors="replace")
             if strip_ansi:
                 text = login.ANSI.sub("", text)
-            if methods:
+            if methods is not None:
                 text = rewrite_auth_methods(text, methods)
             await loop.sock_sendall(client, text.encode())
 
@@ -99,29 +99,33 @@ def listen_unix(path: Path, backlog: int) -> socket.socket:
     return listener
 
 
+def validate_commands(cfg: dict) -> None:
+    commands = [("ACP", cfg["acp"]["command"])]
+    for section in cfg.get("login", []):
+        for key in ("command", "status"):
+            if key in section:
+                commands.append((f"[[login]] {section['id']} {key}", section[key]))
+    for label, command in commands:
+        if not shutil.which(command[0]):
+            raise RuntimeError(f"{label} 命令 {command[0]} 不存在或不可执行：检查 agent.toml 或 CLI 安装")
+
+
 async def serve(cfg: dict) -> None:
     command = cfg["acp"]["command"]
     strip_ansi = cfg["acp"].get("strip_ansi", True)
     methods = config.login_methods(cfg)
-    # [gateway.env] 在监听之前解析：来源变量没值直接报错退出，健康检查不过，别等连接。
-    child_env = {**os.environ, **gateway.acp_env(cfg)}
-    # 起不来是子镜像配置坏了：在监听之前就报错，健康检查不过，别等第一个连接才暴露。
-    if not shutil.which(command[0]):
-        raise RuntimeError(
-            f"ACP 命令 {command[0]} 不存在或不可执行：检查 [acp] command，或 [install] 是否装到位")
-    for section in cfg.get("login", []):
-        if not shutil.which(section["command"][0]):
-            raise RuntimeError(
-                f"[[login]] {section['id']} 的命令 {section['command'][0]} 不存在或不可执行："
-                "检查 [[login]] command，或 [install] 是否装到位")
-        if section.get("status") and not shutil.which(section["status"][0]):
-            raise RuntimeError(
-                f"[[login]] {section['id']} 的状态命令 {section['status'][0]} 不存在或不可执行："
-                "检查 [[login]] status，或 [install] 是否装到位")
+    model_error = None
+    try:
+        source_env = gateway.source_env(cfg) if cfg.get("gateway") else {}
+        child_env = {**os.environ, **gateway.acp_env(cfg), **source_env}
+    except model_source.ModelNotReady as error:
+        model_error = str(error)
+    validate_commands(cfg)
     for directory in (config.AGENT_HOME, config.WORKSPACE, config.SOCKET.parent):
         directory.mkdir(parents=True, exist_ok=True)
     loop = asyncio.get_running_loop()
     children: set[asyncio.subprocess.Process] = set()
+    controls: set[asyncio.Task] = set()
     # 登录 socket 在 ACP socket 之前建好（健康检查看的是 ACP socket）；没有 [[login]] 就不建。
     # 串行锁在登录模块里、登录 socket 和网页共用，每次运行新建（asyncio 原语绑事件循环）。
     login.LOGIN_LOCK = asyncio.Lock()
@@ -136,10 +140,15 @@ async def serve(cfg: dict) -> None:
             login_task = asyncio.create_task(login.serve_login(login_listener, cfg["login"]))
             log(f"终端登录就绪：{login_socket}（{'、'.join(s['id'] for s in cfg['login'])}）")
         if cfg.get("web"):
-            web_server = web.start_web_server(cfg["login"], cfg["web"]["port"])
+            web_server = web.start_web_server(cfg["login"], cfg["web"]["port"], cfg.get("gateway"))
         while True:
             client, _ = await loop.sock_accept(listener)
             client.setblocking(False)
+            if model_error:
+                task = asyncio.create_task(not_ready.respond(client, methods, model_error))
+                controls.add(task)
+                task.add_done_callback(controls.discard)
+                continue
             try:
                 process = await asyncio.create_subprocess_exec(
                     *command,
@@ -174,5 +183,8 @@ async def serve(cfg: dict) -> None:
                     path.unlink()
                 except FileNotFoundError:
                     pass
+        for task in controls:
+            task.cancel()
+        await asyncio.gather(*controls, return_exceptions=True)
         # 正常不走到这（收到 SIGTERM 被取消时才走）：把还活着的子进程收干净再退。
         await asyncio.gather(*(stop_process(process) for process in children))

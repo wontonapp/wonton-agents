@@ -12,14 +12,3 @@ target = "~/.dsh/AGENTS.md"
 
 [gateway]
 hook = "/usr/local/lib/wonton-agent/gateway"
-
-# 登录网页：插件清单把它声明成 webui（sso: none，核心网关挡在前面），从 App 的插件页打开。
-[web]
-port = 8080
-
-# dsh 没有登录命令，只有 API key：读一行写进 ~/.dsh/.credentials.yaml（0600）。
-[[login]]
-id = "api-key"
-name = "DeepSeek API key"
-command = ["/usr/local/lib/wonton-agent/dsh-login"]
-status = ["/usr/local/lib/wonton-agent/dsh-login-status"]

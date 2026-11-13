@@ -1,27 +1,27 @@
 id: ai.deepseek.dsh
-version: 0.1.3
+version: 0.1.4
 title: { zh: dsh, en: dsh }
 description:
   zh: DeepSeek 的编程 Agent（dsh），在聊天里写代码、跑命令
   en: DeepSeek's coding agent (dsh) that writes code and runs commands in chat
 about:
   zh: |
-    DeepSeek 的 dsh 以 Bot 的身份住进聊天：模型网关接好时默认走网关，不用账号，也不用填任何 key。
+    DeepSeek 的 dsh 以 Bot 的身份住进聊天：模型只通过 magpie 模型网关，不用在插件里填 key。
     它住在自己的容器里，在 /workspace 工作区写代码、跑命令，改工作区之外的文件或出网先经确认卡片问你；
-    Wonton 插件的工具也从聊天里调。没接网关时，在聊天里发 /wonton login（这个聊天对应的 Bot）或从
-    插件页打开登录网页（默认 Bot），贴一个自己的 DeepSeek API key（platform.deepseek.com 创建），
-    登录态存在数据目录，容器重建后还在。
+    Wonton 插件的工具也从聊天里调。网关未就绪时如实报错，不会改用官方服务或已保存的 key。
+    上游内置的 DeepSeek 模型搜索接口不支持此网关协议，因此不启用；网页读取和 MCP 工具保持可用。
   en: |
-    DeepSeek's dsh lives in the chat as a bot: when the model gateway is connected it goes through the
-    gateway by default, with no account and no key to fill in. It works in its own container, coding and
-    running commands in /workspace, and asks through confirmation cards before touching files outside it
-    or reaching the network; Wonton plugin tools are called from the chat too. Without the gateway, send
-    /wonton login in the chat (this chat's bot) or open the login page from the plugin screen (default
-    bot) and paste your own DeepSeek API key (created at platform.deepseek.com); the login state stays
-    in the data directory across container rebuilds.
+    DeepSeek's dsh lives in the chat as a bot, using models only through the magpie model gateway.
+    No key is entered in the plugin. It works in its own container, coding and running commands in
+    /workspace, and asks through confirmation cards before touching files outside it or reaching the
+    network; Wonton plugin tools are called from the chat too. An unavailable gateway produces an
+    explicit error, never a switch to official services or saved keys. The built-in DeepSeek model-backed
+    search does not support the gateway protocol and is disabled; web fetching and MCP tools remain available.
 release_notes:
-  zh: AI 正忙时你接着发的几条消息，等它这一轮做完会合成一条交给它；能收图片和文件。
-  en: Messages you send while the AI is busy are combined into one and handed over when the current turn ends; it can take images and files.
+  zh: 模型统一走 magpie，移除 API key 登录；网关未就绪时明确报错，不再改连其他服务。停用不支持网关协议的内置模型搜索。
+  en: Models now use magpie only, with API-key login removed. An unavailable gateway reports an error instead of switching services. Built-in model-backed search is disabled because it does not support the gateway protocol.
+  zh-Hant: 模型統一走 magpie，移除 API key 登入；網關未就緒時明確報錯，不再改連其他服務。停用不支援網關協定的內建模型搜尋。
+  ja: モデルの接続先を magpie に統一し、API キーでのログインを削除しました。ゲートウェイが未準備の場合はエラーを表示し、別のサービスに切り替えません。ゲートウェイの通信方式に対応しない内蔵モデル検索は無効です。
 license: MIT
 notices: [NOTICE, image/LICENSE.dsh]
 homepage: https://github.com/deepseek-ai/deepseek-harness
@@ -29,12 +29,8 @@ tags: { zh: [AI, 开发], en: [AI, Development] }
 acp_mode: default
 memory: 1G
 env:
-  # dsh 的凭据（~/.dsh/.credentials.yaml）、会话和 acp profile 补丁都放在 HOME 下的 .dsh/，数据卷里，容器重建不丢。
+  # 会话和 acp profile 补丁保存在数据卷 HOME 下的 .dsh/。
   DSH_HOME: /data/agent/home/.dsh
   # 官方路由默认随请求回传会话日志和 OTLP 遥测；家里自用，全关。
   DSH_TELEMETRY_MODE: DISABLED
   WONTON_MCP_URL: ${WONTON_MCP_URL:?需要 MCP 总线地址}
-login:
-  - id: api-key
-    title: { zh: DeepSeek API key, en: DeepSeek API key }
-webui: true

@@ -1,0 +1,7 @@
+pre-commit:
+  parallel: true
+  commands:
+    file-size:
+      run: python3 base/scripts/check-size.py
+    generated:
+      run: python3 gen/gen.py --check

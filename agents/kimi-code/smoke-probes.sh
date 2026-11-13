@@ -8,7 +8,7 @@ web_assert() {
   local logins
   logins="$(dweb /api/logins)" || { echo "登录网页 API 打不开：$logins"; return 1; }
   grep -q '"id": "kimi-account"' <<<"$logins" || { echo "列表里没有 kimi-account：$logins"; return 1; }
-  grep -q '"id": "platform-key"' <<<"$logins" || { echo "列表里没有 platform-key：$logins"; return 1; }
+  grep -q '"id": "magpie"' <<<"$logins" || { echo "列表里没有 magpie：$logins"; return 1; }
 }
 
 # Agent 没有用户体系：登录网页认的是核心网关的会话。probes.sh 从这份文件读这两个变量。

@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from . import config, log, login
+from . import config, gateway, log, login, model_source
 
 # 状态命令最多等这么久（每个并发查，超时算查询出错）；静态文件在镜像里的位置。
 STATUS_TIMEOUT = 10
@@ -18,6 +18,7 @@ WEB_ROOT = Path("/usr/local/share/wonton-agent/web")
 # 网页要用的 [[login]] 段、事件循环和 HTTP 服务器，start_web_server 里赋值；测试读
 # WEB_SERVER 拿实际端口。
 WEB_LOGINS: list[dict] = []
+WEB_GATEWAY: dict = {}
 WEB_LOOP: asyncio.AbstractEventLoop | None = None
 WEB_SERVER: ThreadingHTTPServer | None = None
 LOGIN_API_RE = re.compile(r"^/api/logins/([A-Za-z0-9][A-Za-z0-9._-]*)/(start|events|input|cancel)$")
@@ -54,7 +55,18 @@ async def login_status(section: dict) -> dict:
             "stdin": section.get("stdin", "lines"),
             "restart_on_success": section.get("restart_on_success", True),
             "busy": section["id"] in login.ACTIVE_LOGINS,
-            "status": "unknown", "detail": None}
+            "status": "unknown", "detail": None, "model_source": section.get("model_source")}
+    if section.get("model_source") == "gateway":
+        if model_source.choice_path().exists():
+            item["status"] = "inactive"
+            return item
+        try:
+            gateway.require_gateway({"gateway": WEB_GATEWAY})
+            item["status"] = "selected"
+        except model_source.ModelNotReady as error:
+            item["status"] = "not_ready"
+            item["detail"] = str(error)
+        return item
     command = section.get("status")
     if item["busy"] or not command:
         return item
@@ -110,12 +122,13 @@ class LoginHTTPServer(ThreadingHTTPServer):
         self.server_address = self.socket.getsockname()
 
 
-def start_web_server(logins: list[dict], port: int) -> ThreadingHTTPServer:
+def start_web_server(logins: list[dict], port: int, gateway_config: dict | None = None) -> ThreadingHTTPServer:
     """在 0.0.0.0:<port> 起登录网页（插件清单声明成 webui，核心网关挡在前面）。HTTP 跑在
     daemon 线程里，asyncio 的活经 run_coroutine_threadsafe 回当前循环。"""
-    global WEB_LOOP, WEB_LOGINS, WEB_SERVER
+    global WEB_LOOP, WEB_LOGINS, WEB_SERVER, WEB_GATEWAY
     WEB_LOOP = asyncio.get_running_loop()
     WEB_LOGINS = logins
+    WEB_GATEWAY = gateway_config or {}
     server = LoginHTTPServer(("0.0.0.0", port), LoginWebHandler)
     server.daemon_threads = True
     WEB_SERVER = server

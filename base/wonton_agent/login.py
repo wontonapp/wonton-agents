@@ -9,7 +9,7 @@ import os
 import re
 import socket
 
-from . import config
+from . import config, model_source
 
 # 桥把终端登录的链接和提示原样发进聊天：去掉终端配色码（照搬 wonton-plugin-codex）。
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
@@ -55,12 +55,16 @@ class LoginSession:
         self.frames: asyncio.Queue[dict] = asyncio.Queue()
         self.exited = asyncio.Event()
         self.exit_code: int | None = None
+        self.cancelled = False
 
     def stdin_open(self) -> bool:
         return (self.process is not None and self.process.stdin is not None
                 and not self.process.stdin.is_closing())
 
     async def start(self) -> None:
+        if self.section.get("model_source") == "gateway":
+            asyncio.create_task(self._finish(0))
+            return
         try:
             self.process = await asyncio.create_subprocess_exec(
                 *self.section["command"],
@@ -89,6 +93,7 @@ class LoginSession:
     async def close_input(self) -> None:
         """输入端没了（桥断开、网页取消）：stdin 关掉等 2 秒，terminate 等 2 秒，还不退就
         kill。退出码由 _run 收进 frames。"""
+        self.cancelled = True
         process = self.process
         if process is None:
             return
@@ -117,17 +122,26 @@ class LoginSession:
         if self.process.stdin is not None and not self.process.stdin.is_closing():
             self.process.stdin.close()
         await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
+        await self._finish(code)
+
+    async def _finish(self, code: int) -> None:
+        if code == 0 and self.cancelled and self.section.get("model_source") is not None:
+            code = 130
+        if code == 0:
+            try:
+                model_source.select(self.section)
+            except OSError as error:
+                self.frames.put_nowait({"err": f"保存模型来源失败：{error}"})
+                code = 1
         self.exit_code = code
         self.frames.put_nowait({"exit": code})
         self.exited.set()
         if code == 0 and self.section.get("restart_on_success", True):
-            # 等消费方把退出帧收完（桥收到帧、网页画出来），然后退出。
             await asyncio.sleep(RESTART_DELAY)
             os._exit(0)
 
     async def _pump(self, stream: asyncio.StreamReader, key: str) -> None:
-        """stdout/stderr 搬运：完整行照常发；不完整的一行等 IDLE_FLUSH 没有新字节就先发，
-        之后的输出接着这一行拼（帧里不加换行）。EOF 时剩多少发多少。"""
+        """逐行转发输出，不完整行在 IDLE_FLUSH 后发送。"""
         pending = b""
         while True:
             try:
@@ -211,7 +225,9 @@ async def relay_login(client: socket.socket, loop: asyncio.AbstractEventLoop,
         try:
             forward = asyncio.create_task(forward_frames(session, client, loop))
             await session.start()
-            if session.stdin_mode == "line_then_eof":
+            if section.get("model_source") == "gateway":
+                await session.exited.wait()
+            elif session.stdin_mode == "line_then_eof":
                 line = await reader.readline()
                 if line:
                     await session.write_input(line.decode(errors="replace").rstrip("\n"))

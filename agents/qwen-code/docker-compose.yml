@@ -4,7 +4,7 @@
 # agent，agent 的 HOME 不给 bridge。
 services:
   agent:
-    image: ghcr.io/wontonapp/wonton-agents/qwen-code:0.1.2
+    image: ghcr.io/wontonapp/wonton-agents/qwen-code:0.1.3
     # 底座镜像固定用 65532，入口不再降权；bridge 挂同一个 run/ 目录，两个服务的属主必须相同。
     user: "65532:65532"
     restart: unless-stopped
@@ -19,8 +19,6 @@ services:
       WONTON_AGENT_WORKSPACE: /workspace
       # 容器里没有浏览器：登录命令只打链接，用户自己开浏览器拿 code。
       NO_BROWSER: "1"
-      OPENAI_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
-      OPENAI_MODEL: qwen3-coder-plus
     volumes:
       - ${WONTON_BOT_DATA:?需要 Bot 数据目录}/agent:/data/agent
       - ${WONTON_BOT_DATA}/run:/data/run
@@ -66,33 +64,15 @@ services:
       timeout: 5s
       start_period: 30s
       start_interval: 2s
-  # 登录网页的入口：webui 不能指向 Bot 服务（旧核心仍按这条判），而登录页在 agent 容器里（每个 Bot 一份），
-  # 所以架一个全插件一份的转发。插件页只开默认 Bot 的那一份，聊天里的 /wonton login 用当前 Bot。
-  web:
-    image: ghcr.io/wontonapp/wonton-agents/qwen-code:0.1.2
-    user: "65532:65532"
-    restart: unless-stopped
-    entrypoint: ["python3", "/usr/local/lib/wonton-agent/web-proxy"]
-    environment:
-      HOME: /data/agent/home
-      WEB_PORT: "8080"
-    healthcheck:
-      # 本地监听和上游都要通：上游没了这台也不该算健康。
-      test: ["CMD", "python3", "-c", "import socket; [socket.create_connection(a, 3).close() for a in [('127.0.0.1', 8080), ('agent-default', 8080)]]"]
-      interval: 30s
-      timeout: 5s
-      start_period: 30s
-      start_interval: 2s
-
 x-wonton:
   spec: "0.6"
   id: ai.qwen-code
-  version: 0.1.2
+  version: 0.1.3
   kind: agent
   title: { zh: AI 编程助手（Qwen Code）, en: Coding Bot (Qwen Code) }
   description:
-    zh: 阿里巴巴（通义千问）家的编程助手：在聊天里帮你写代码、改文件、跑命令，动手前先弹卡片问你。直接用模型设置就行，也能填自己的千问 key。
-    en: "Alibaba's Qwen coding bot: it writes code, edits files and runs commands from your chat, asking with a card before it acts. Works with your Models setup, or your own Qwen key."
+    zh: 阿里巴巴（通义千问）家的编程助手：通过 magpie 模型网关，在聊天里帮你写代码、改文件、跑命令，动手前先弹卡片问你。
+    en: "Alibaba's Qwen coding bot: uses the magpie model gateway to write code, edit files and run commands from your chat, asking with a card before it acts."
   icon: icon.svg
   notices: [NOTICE, image/LICENSE.qwen-code]
   author: { name: Wonton plugin authors }
@@ -101,33 +81,28 @@ x-wonton:
   tags: { zh: [AI, 开发], en: [AI, Development] }
   about:
     zh: |
-      Qwen Code 是阿里巴巴家的编程 AI，住进你的聊天里。默认用模型设置里配好的 AI，不用账号、不用填
-      key；也可以贴上自己的千问 key：在应用页打开登录网页（管默认 Bot）或在聊天里发 /wonton login
-      （管这个聊天的 Bot），贴上 key（阿里云百炼的 key；其他平台的 key 请在模型设置里加）。
+      Qwen Code 是阿里巴巴家的编程 AI，住进你的聊天里。模型统一通过 magpie 模型网关，
+      不用在插件里填 key。网关未就绪时明确报错，不会使用已保存的 key 或其他模型服务。
+      上游内置的 DashScope 模型搜索不支持网关协议，因此不启用；其他工具和 MCP 保持可用。
 
       会话按 default 模式跑：改文件、跑命令之前经确认卡片问你；Wonton 插件的工具也从聊天里调。
       和它的对话是核心建的加密私聊，重启后接着聊。
     en: |
-      Qwen Code is Alibaba's coding AI, living in your chat. By default it uses the AI set up in
-      Models — no account, no key. Or paste your own Qwen key: open the sign-in page on the app
-      screen (for the default bot) or send /wonton login in the chat (for this chat's bot) and
-      paste the key (from Alibaba Cloud Model Studio; add keys from other platforms in Models).
+      Qwen Code is Alibaba's coding AI, living in your chat. Models use the magpie model gateway only;
+      no key is entered in the plugin. An unavailable gateway produces an explicit error instead of
+      using saved keys or other model services. The built-in DashScope model-backed search does not
+      support the gateway protocol and is disabled; other tools and MCP remain available.
 
       Sessions run in default mode: it asks through confirmation cards before editing files or running
       commands; Wonton plugin tools are called from the chat.
       The chat is an encrypted direct message the core creates, and it carries on after a restart.
   release_notes:
-    zh: AI 正忙时你接着发的几条消息，等它这一轮做完会合成一条交给它；能收图片和文件。
-    en: Messages you send while the AI is busy are combined into one and handed over when the current turn ends; it can take images and files.
-  webui:
-    service: web
-    port: 8080
-    sso: none
+    zh: 主模型和辅助模型统一走 magpie，移除 API key 登录；网关未就绪时明确报错，不再恢复其他服务。停用不支持网关协议的内置模型搜索。
+    en: Primary and helper models now use magpie only. API-key login and provider restoration are removed; an unavailable gateway reports an error. Built-in model-backed search is disabled because it does not support the gateway protocol.
+    zh-Hant: 主模型和輔助模型統一走 magpie，移除 API key 登入；網關未就緒時明確報錯，不再還原其他服務。停用不支援網關協定的內建模型搜尋。
+    ja: メインと補助モデルを magpie に統一し、API キーでのログインと他サービスへの復元を削除しました。ゲートウェイが未準備の場合はエラーを表示します。対応しない内蔵モデル検索は無効です。
   agent:
     protocol: acp
-    login:
-      - id: api-key
-        title: { zh: Qwen API key, en: Qwen API key }
   bot:
     display_name: { zh: AI 编程助手（Qwen Code）, en: Coding Bot (Qwen Code) }
   bots:

@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+"""不让继承的外部地址或 key 覆盖主人选择的模型来源。"""
+import os
+
+source = os.environ.get("WONTON_AGENT_MODEL_SOURCE")
+if source not in ("gateway", "official"):
+    raise SystemExit("模型来源未就绪：请在模型设置或官方订阅登录中选择")
+env = {key: value for key, value in os.environ.items()
+       if not key.startswith(("OPENAI_", "AZURE_OPENAI_", "CODEX_API_"))}
+if source == "gateway":
+    key = os.environ.get("WONTON_MODEL_API_KEY", "").strip()
+    if not key:
+        raise SystemExit("magpie 模型网关未就绪：缺少访问凭据")
+    env["OPENAI_API_KEY"] = key
+os.execve("/opt/codex-acp/dist/index.js", ["/opt/codex-acp/dist/index.js"], env)

@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+"""Launch Claude ACP without inherited external provider or key overrides."""
+import os
+import sys
+
+sys.path.insert(0, "/usr/local/lib/wonton-agent")
+import agent_settings
+
+source = os.environ.get("WONTON_AGENT_MODEL_SOURCE")
+if source not in ("gateway", "official"):
+    sys.exit("模型来源未就绪：请通过模型设置或官方订阅登录选择")
+
+agent_settings.clean_process_env()
+if source == "gateway":
+    os.environ.update(agent_settings.gateway_env())
+os.execvp("node", ["node", "/data/agent/tools/claude-agent-acp/0.101.0/dist/index.js"])

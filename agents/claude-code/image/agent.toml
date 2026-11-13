@@ -17,32 +17,25 @@ target = "~/.claude/CLAUDE.md"
 # 只讲 Anthropic Messages 的 Agent：网关钩子按 WONTON_MODEL_ANTHROPIC_BASE_URL 选路。
 [gateway]
 hook = "/usr/local/lib/wonton-agent/gateway"
+required_env = ["WONTON_MODEL_ANTHROPIC_BASE_URL"]
 
 [acp]
-command = ["node", "/data/agent/tools/claude-agent-acp/0.101.0/dist/index.js"]
+command = ["/usr/local/lib/wonton-agent/acp-launch"]
 # CLI 会用配色码画终端界面，桥自己也会剥；这里保持缺省。
 
 # 登录网页：0.0.0.0:8080，清单声明成 webui（核心网关挡着，只有主人打得开）。
 [web]
 port = 8080
 
-# 三种官方登录。适配器只认网关的 authenticate，终端登录一律由这里起命令；命令经 `--cli` 原样透传给 CLI。
-# 前两种会先清掉存下的 API key（它比订阅登录优先），再跑 CLI 自己的 OAuth。
+# 官方订阅登录成功后，底座持久化模型来源；已有凭据不自动选路。
 [[login]]
 id = "claudeai"
 name = "Claude 订阅（粘贴登录码）"
+model_source = "official"
 command = ["/usr/local/lib/wonton-agent/oauth-login", "claudeai"]
 status = ["/usr/local/lib/wonton-agent/auth-status"]
 
 [[login]]
-id = "console"
-name = "Anthropic Console（API 计费）"
-command = ["/usr/local/lib/wonton-agent/oauth-login", "console"]
-status = ["/usr/local/lib/wonton-agent/auth-status"]
-
-# key 读一行写进 ~/.claude/api-key（0600），settings 里的 apiKeyHelper 指向读它的脚本，密钥不进日志。
-[[login]]
-id = "api-key"
-name = "Anthropic API key"
-command = ["/usr/local/lib/wonton-agent/api-key-login"]
-status = ["/usr/local/lib/wonton-agent/api-key-status"]
+id = "magpie"
+name = "magpie 模型网关"
+model_source = "gateway"

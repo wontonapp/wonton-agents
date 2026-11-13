@@ -21,9 +21,9 @@
     .head { display: flex; align-items: center; gap: 10px; }
     .name { flex: 1; font-size: 16px; font-weight: 500; overflow-wrap: anywhere; }
     .badge { font-size: 12px; line-height: 1; padding: 5px 9px; border-radius: var(--border-radius-full, 999px); white-space: nowrap; }
-    .badge.logged_in { color: var(--color-text-success, #18753C); background: var(--color-background-success, color-mix(in srgb, var(--color-text-success, #18753C) 12%, Canvas)); }
-    .badge.logged_out, .badge.unknown { color: var(--color-text-secondary, color-mix(in srgb, CanvasText 60%, Canvas)); background: var(--color-background-secondary, color-mix(in srgb, CanvasText 5%, Canvas)); }
-    .badge.error { color: var(--color-text-danger, #B42318); background: var(--color-background-danger, color-mix(in srgb, var(--color-text-danger, #B42318) 12%, Canvas)); }
+    .badge.logged_in, .badge.selected { color: var(--color-text-success, #18753C); background: var(--color-background-success, color-mix(in srgb, var(--color-text-success, #18753C) 12%, Canvas)); }
+    .badge.logged_out, .badge.unknown, .badge.inactive { color: var(--color-text-secondary, color-mix(in srgb, CanvasText 60%, Canvas)); background: var(--color-background-secondary, color-mix(in srgb, CanvasText 5%, Canvas)); }
+    .badge.error, .badge.not_ready { color: var(--color-text-danger, #B42318); background: var(--color-background-danger, color-mix(in srgb, var(--color-text-danger, #B42318) 12%, Canvas)); }
     .badge.running { color: var(--wonton-accent-ink, #9B494A); background: var(--wonton-accent-fill, #FEEBEA); }
     .busy { color: var(--color-text-warning, #8A4B00); font-size: 14px; margin: 0 0 2px; }
     button {
@@ -65,20 +65,20 @@
 const zh = (navigator.language || "").toLowerCase().startsWith("zh");
 document.documentElement.lang = zh ? "zh" : "en";
 const t = zh ? {
-  status: { logged_in: "已登录", logged_out: "没登录", unknown: "不确定", error: "查询出错" },
-  login: "登录", relogin: "重新登录", running: "登录中…",
+  status: { logged_in: "已登录", logged_out: "没登录", unknown: "不确定", error: "查询出错", selected: "已选择", inactive: "未选择", not_ready: "未就绪" },
+  login: "登录", relogin: "重新登录", use: "使用", running: "登录中…",
   busyAll: "有一个登录正在进行", cancel: "取消", send: "发送",
-  show: "显示", hide: "隐藏", placeholder: "粘贴回码或 API key",
+  show: "显示", hide: "隐藏", placeholder: "粘贴登录回码",
   inputLabel: "要发给登录程序的一行", toggleLabel: "显示或隐藏输入内容",
   successRestart: "登录成功，Agent 正在重启", success: "登录成功",
   lost: "连接断了", exitCode: (n) => `退出码 ${n}`,
   loadError: "拿不到登录列表", retry: "重试", details: "详情", generic: "出错了",
   apiErrors: { busy: "有一个登录正在进行", not_running: "这个登录没有在进行", stdin_closed: "登录程序不再读输入" },
 } : {
-  status: { logged_in: "Logged in", logged_out: "Not logged in", unknown: "Unknown", error: "Query failed" },
-  login: "Log in", relogin: "Log in again", running: "Logging in…",
+  status: { logged_in: "Logged in", logged_out: "Not logged in", unknown: "Unknown", error: "Query failed", selected: "Selected", inactive: "Not selected", not_ready: "Not ready" },
+  login: "Log in", relogin: "Log in again", use: "Use", running: "Logging in…",
   busyAll: "A login is already running", cancel: "Cancel", send: "Send",
-  show: "Show", hide: "Hide", placeholder: "Paste the code or API key",
+  show: "Show", hide: "Hide", placeholder: "Paste the login code",
   inputLabel: "A line to send to the login program", toggleLabel: "Show or hide the input",
   successRestart: "Login succeeded, Agent is restarting", success: "Login succeeded",
   lost: "Connection lost", exitCode: (n) => `Exit code ${n}`,
@@ -90,10 +90,10 @@ let data = null;
 let pageError = null;
 const sessions = new Map(); // id -> {lines, rendered, running, exit, lost, stdinOpen, cancelling, es, pre}
 
-function el(tag, cls, text) {
+function el(tag, cls, ...children) {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
-  if (text !== undefined) node.textContent = text;
+  node.append(...children);
   return node;
 }
 
@@ -158,13 +158,13 @@ function rowEl(item) {
     head.append(el("span", "badge running", t.running));
   } else {
     head.append(el("span", `badge ${item.status}`, t.status[item.status] || item.status));
-    const button = el("button", "primary", item.status === "logged_in" ? t.relogin : t.login);
+    const button = el("button", "primary", item.model_source === "gateway" ? t.use : item.status === "logged_in" ? t.relogin : t.login);
     button.disabled = anyLoginActive();
     button.onclick = () => startLogin(item.id);
     head.append(button);
   }
   row.append(head);
-  if (item.status === "error" && item.detail) {
+  if (item.detail) {
     row.append(el("details", null, el("summary", null, t.details), el("pre", null, item.detail)));
   }
   if (s && (s.lines.length || s.exit !== null || s.lost || s.running)) {

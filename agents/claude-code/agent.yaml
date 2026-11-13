@@ -1,32 +1,33 @@
 id: ai.claude-code
-version: 0.1.2
+version: 0.1.3
 title: { zh: AI 编程助手（Claude Code）, en: Coding Bot (Claude Code) }
 description:
-  zh: Anthropic（Claude）家的编程助手：在聊天里帮你写代码、改文件、跑命令，动手前先弹卡片问你。适合已经有 Claude 付费订阅的人；模型设置不支持它时，要用 Pro 及以上订阅或自己的 key 登录。
-  en: "Anthropic's Claude as a coding bot: it writes code, edits files and runs commands from your chat, asking with a card before it acts. Good if you already pay for Claude — if your Models setup can't serve it, sign in with a Pro or higher plan or your own key."
+  zh: Anthropic（Claude）家的编程助手：在聊天里帮你写代码、改文件、跑命令，动手前先弹卡片问你。默认经 magpie 模型网关，也能明确选择 Claude 付费订阅。
+  en: "Anthropic's coding bot: it writes code, edits files and runs commands from chat, asking with a card before it acts. Uses magpie by default, or an explicitly selected Claude subscription."
 about:
   zh: |
     Claude Code 是 Anthropic 家的编程 AI，住进你的聊天里：改文件、跑命令之前先弹确认卡片问你；
-    你装的应用提供的工具也能在聊天里用。可以走模型设置，也可以用你自己的 Anthropic 账号或 key
-    登录（下面细说）。
+    你装的应用提供的工具也能在聊天里用。模型默认走 magpie 模型网关（须提供 Anthropic Messages 接口）。
+    网关未就绪会报错，不会因已有账号或旧 key 自动改连其他服务。
 
-    接上模型网关（要提供 Anthropic Messages 接口）时默认走网关，不用账号。没接网关时，在插件页的登录
-    网页（默认 Bot）或聊天里发 /wonton login（这个聊天对应的 Bot）登录：用 Claude 订阅或 Anthropic
-    Console 登录（粘一次登录码），也可以贴一个自己的 Anthropic API key。订阅需要 Pro、Max、Ultra、
-    Team 或 Enterprise；免费版不含 Claude Code。
+    在插件页的登录网页或聊天里 /wonton login 明确选择 Claude 订阅并完成登录，才会使用官方订阅；
+    即使网关可用也不会自动切回。需要 Claude Code 支持的付费订阅；免费版不含 Claude Code。
+    选“magpie 模型网关”可切回网关。不提供 API key 或 Console API 计费登录。
   en: |
     Claude Code is Anthropic's coding AI, living in your chat: it sends an approval request before
     editing files or running commands, and the tools your apps provide work from the chat too. It
-    can use your Models setup or sign in with your own Anthropic account or key (details below).
+    uses magpie by default (an Anthropic Messages endpoint is required). An unavailable gateway
+    reports an error instead of falling back to an old account or key.
 
-    With a model gateway that speaks Anthropic Messages it goes through the gateway by default,
-    with no account. Without one, sign in from the login page on the plugin screen (default bot)
-    or send /wonton login in the chat (this chat's bot): with a Claude subscription or Anthropic
-    Console (paste one login code), or paste your own Anthropic API key.
-    Subscriptions need Pro, Max, Ultra, Team or Enterprise; the free plan has no Claude Code.
+    Explicitly select Claude subscription in the plugin login page or /wonton login and complete
+    sign-in to use your subscription, independently of gateway availability. A supported paid plan
+    is required. Select magpie to return to the gateway. API-key and Console API billing logins
+    are not offered.
 release_notes:
-  zh: AI 正忙时你接着发的消息会直接递给它，不用等这一轮做完；能收图片和文件。
-  en: Messages you send while the AI is busy now reach it right away instead of waiting for the turn to end; it can take images and files.
+  zh: 模型默认走 magpie；只有明确完成订阅登录才直连官方。网关未就绪会明确报错，移除 API key 和 Console 计费登录。
+  en: Models use magpie by default; only explicit subscription sign-in selects the official service. Gateway errors are reported without fallback. API-key and Console billing logins were removed.
+  zh-Hant: 模型預設走 magpie；只有明確完成訂閱登入才直連官方。網關未就緒會明確報錯，移除 API key 和 Console 計費登入。
+  ja: モデルは既定で magpie を利用し、サブスクリプションへの明示的なログイン時のみ公式サービスを使います。ゲートウェイ未準備時はエラーを表示し、API キーと Console 課金のログインを削除しました。
 license: Apache-2.0
 notices: [NOTICE, image/LICENSE.claude-agent-acp, image/LICENSE.claude-code]
 homepage: https://github.com/agentclientprotocol/claude-agent-acp
@@ -45,7 +46,5 @@ webui: true
 login:
   - id: claudeai
     title: { zh: Claude 订阅, en: Claude subscription }
-  - id: console
-    title: { zh: Anthropic Console, en: Anthropic Console }
-  - id: api-key
-    title: { zh: Anthropic API key, en: Anthropic API key }
+  - id: magpie
+    title: { zh: magpie 模型网关, en: magpie model gateway }
