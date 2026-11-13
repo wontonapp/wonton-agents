@@ -4,7 +4,7 @@
 # agent，agent 的 HOME 不给 bridge。
 services:
   agent:
-    image: ghcr.io/wontonapp/wonton-agents/dsh:0.1.4
+    image: ghcr.io/wontonapp/wonton-agents/dsh:0.1.5
     # 底座镜像固定用 65532，入口不再降权；bridge 挂同一个 run/ 目录，两个服务的属主必须相同。
     user: "65532:65532"
     restart: unless-stopped
@@ -70,7 +70,7 @@ services:
 x-wonton:
   spec: "0.6"
   id: ai.deepseek.dsh
-  version: 0.1.4
+  version: 0.1.5
   kind: agent
   title: { zh: dsh, en: dsh }
   description:
@@ -96,10 +96,10 @@ x-wonton:
       explicit error, never a switch to official services or saved keys. The built-in DeepSeek model-backed
       search does not support the gateway protocol and is disabled; web fetching and MCP tools remain available.
   release_notes:
-    zh: 模型统一走 magpie，移除 API key 登录；网关未就绪时明确报错，不再改连其他服务。停用不支持网关协议的内置模型搜索。
-    en: Models now use magpie only, with API-key login removed. An unavailable gateway reports an error instead of switching services. Built-in model-backed search is disabled because it does not support the gateway protocol.
-    zh-Hant: 模型統一走 magpie，移除 API key 登入；網關未就緒時明確報錯，不再改連其他服務。停用不支援網關協定的內建模型搜尋。
-    ja: モデルの接続先を magpie に統一し、API キーでのログインを削除しました。ゲートウェイが未準備の場合はエラーを表示し、別のサービスに切り替えません。ゲートウェイの通信方式に対応しない内蔵モデル検索は無効です。
+    zh: 更新底座到 0.1.2，修复模型来源模块缺失导致的启动错误；网关未就绪时明确报错，不会改连其他服务。
+    en: Updates the base image to 0.1.2, fixing startup when the model-source module is missing; an unavailable gateway reports an error instead of switching services.
+    zh-Hant: 更新底座至 0.1.2，修復模型來源模組缺失造成的啟動錯誤；網關未就緒時明確報錯，不會改連其他服務。
+    ja: ベースイメージを 0.1.2 に更新し、モデルソースモジュール不足による起動エラーを修正しました。ゲートウェイ未準備時はエラーを示し、別サービスに切り替えません。
   agent:
     protocol: acp
   bot:

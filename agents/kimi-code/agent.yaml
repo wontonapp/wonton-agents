@@ -1,5 +1,5 @@
 id: ai.kimi-code
-version: 0.1.4
+version: 0.1.5
 title: { zh: AI 编程助手（Kimi Code）, en: Coding Bot (Kimi Code) }
 description:
   zh: Kimi（月之暗面）家的编程助手：读代码、改文件、跑命令，改文件和跑命令前都会出确认卡，你同意才执行。默认用 magpie，也可明确选择 Kimi 官方订阅。
@@ -22,10 +22,10 @@ about:
     the plugin login page or /wonton login to use the official subscription independently of the
     gateway. Select magpie to return. Platform API-key login is not offered.
 release_notes:
-  zh: 模型默认走 magpie；明确完成 Kimi 订阅登录才使用官方账号。网关出错不再自动换来源，移除开放平台 API key 登录，统一主模型和子代理模型。
-  en: Models use magpie by default; explicit Kimi subscription sign-in selects the official account. Gateway errors no longer change sources. Platform API-key login was removed, and primary and subagent models now share the selected source.
-  zh-Hant: 模型預設走 magpie；明確完成 Kimi 訂閱登入才使用官方帳號。網關出錯不再自動換來源，移除開放平台 API key 登入，統一主模型與子代理模型。
-  ja: モデルは既定で magpie を利用し、Kimi サブスクリプションへの明示的なログイン時のみ公式アカウントを使います。ゲートウェイのエラーで接続先を変えず、API キーログインを削除し、メインとサブエージェントのモデルを統一しました。
+  zh: 更新底座到 0.1.2，修复模型来源模块缺失导致的启动错误；网关出错不再自动换来源。
+  en: Updates the base image to 0.1.2, fixing startup when the model-source module is missing; gateway errors do not change the selected source.
+  zh-Hant: 更新底座至 0.1.2，修復模型來源模組缺失造成的啟動錯誤；網關出錯不再自動更換來源。
+  ja: ベースイメージを 0.1.2 に更新し、モデルソースモジュール不足による起動エラーを修正しました。ゲートウェイエラーで接続先を変更しません。
 license: MIT
 notices: [NOTICE]
 homepage: https://github.com/wontonapp/wonton-agents

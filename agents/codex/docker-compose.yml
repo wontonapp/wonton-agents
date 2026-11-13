@@ -4,7 +4,7 @@
 # agent，agent 的 HOME 不给 bridge。
 services:
   agent:
-    image: ghcr.io/wontonapp/wonton-agents/codex:0.1.3
+    image: ghcr.io/wontonapp/wonton-agents/codex:0.1.4
     # 底座镜像固定用 65532，入口不再降权；bridge 挂同一个 run/ 目录，两个服务的属主必须相同。
     user: "65532:65532"
     restart: unless-stopped
@@ -69,7 +69,7 @@ services:
   # 登录网页的入口：webui 不能指向 Bot 服务（旧核心仍按这条判），而登录页在 agent 容器里（每个 Bot 一份），
   # 所以架一个全插件一份的转发。插件页只开默认 Bot 的那一份，聊天里的 /wonton login 用当前 Bot。
   web:
-    image: ghcr.io/wontonapp/wonton-agents/codex:0.1.3
+    image: ghcr.io/wontonapp/wonton-agents/codex:0.1.4
     user: "65532:65532"
     restart: unless-stopped
     entrypoint: ["python3", "/usr/local/lib/wonton-agent/web-proxy"]
@@ -87,7 +87,7 @@ services:
 x-wonton:
   spec: "0.6"
   id: ai.codex
-  version: 0.1.3
+  version: 0.1.4
   kind: agent
   title: { zh: AI 编程助手（Codex）, en: Coding Bot (Codex) }
   description:
@@ -112,10 +112,10 @@ x-wonton:
       to return to Models. It asks through confirmation cards before protected changes;
       tools provided by your apps work from the chat too.
   release_notes:
-    zh: 模型没接好会明确告诉你，不再偷偷改连其他地方；只有你主动登录时才使用 ChatGPT 订阅，也能切回模型设置。
-    en: Reports when Models is not ready instead of switching elsewhere; ChatGPT subscriptions are used only after you sign in explicitly, and you can switch back to Models.
-    zh-Hant: 模型沒接好會明確告訴你，不再偷偷改連其他地方；只有你主動登入時才使用 ChatGPT 訂閱，也能切回模型設定。
-    ja: モデルの準備ができていないときは理由を知らせ、別の接続先には切り替えません。ChatGPT のサブスクリプションは自分でログインしたときだけ使い、モデル設定に戻せます。
+    zh: 更新底座到 0.1.2，修复模型来源模块缺失导致的启动错误；模型未就绪时仍明确提示，不会切换来源。
+    en: Updates the base image to 0.1.2, fixing startup when the model-source module is missing; an unready model still reports clearly without switching sources.
+    zh-Hant: 更新底座至 0.1.2，修復模型來源模組缺失造成的啟動錯誤；模型未就緒時仍明確提示，不會切換來源。
+    ja: ベースイメージを 0.1.2 に更新し、モデルソースモジュール不足による起動エラーを修正しました。モデル未準備時は明示的に通知し、接続先を切り替えません。
   webui:
     service: web
     port: 8080

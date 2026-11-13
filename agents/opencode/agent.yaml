@@ -1,5 +1,5 @@
 id: ai.opencode
-version: 0.1.3
+version: 0.1.4
 title: { zh: AI 编程助手（OpenCode）, en: Coding Bot (OpenCode) }
 description:
   zh: 开源的编程助手：通过 magpie 模型网关读代码、改文件、跑命令，改动前先弹卡片问你。
@@ -21,10 +21,10 @@ about:
     OpenCode edits files and runs commands: the main session runs in plan mode and topic sessions
     follow it, so edits and commands always ask first via confirmation cards.
 release_notes:
-  zh: 主模型和辅助模型统一走 magpie，移除 API key 登录并限制服务商选择；网关未就绪时明确报错，不再回退免费模型。
-  en: Primary and helper models now use magpie only. API-key login is removed and provider selection is restricted; an unavailable gateway reports an error instead of falling back to free models.
-  zh-Hant: 主模型和輔助模型統一走 magpie，移除 API key 登入並限制服務商選擇；網關未就緒時明確報錯，不再退回免費模型。
-  ja: メインと補助モデルを magpie に統一し、API キーでのログインを削除して接続先を制限しました。ゲートウェイが未準備の場合はエラーを表示し、無料モデルに切り替えません。
+  zh: 更新底座到 0.1.2，修复模型来源模块缺失导致的启动错误；网关未就绪时明确报错，不再回退。
+  en: Updates the base image to 0.1.2, fixing startup when the model-source module is missing; an unavailable gateway reports an error instead of falling back.
+  zh-Hant: 更新底座至 0.1.2，修復模型來源模組缺失造成的啟動錯誤；網關未就緒時明確報錯，不再退回。
+  ja: ベースイメージを 0.1.2 に更新し、モデルソースモジュール不足による起動エラーを修正しました。ゲートウェイ未準備時はエラーを示し、フォールバックしません。
 license: MIT
 notices: [NOTICE]
 homepage: https://github.com/wontonapp/wonton-agents
