@@ -19,7 +19,7 @@ extra_check() {
   agent_check_outsider
 }
 
-# shellcheck source=agents/probe-helpers.sh
+# shellcheck disable=SC1091 # 助手文件在 agents/ 下，不在 CI 的 shellcheck 输入里；agents/probe-helpers.sh 单独过 shellcheck
 . "$(dirname "${BASH_SOURCE[0]}")/../probe-helpers.sh"
 
 _dsh_marker_file() {
