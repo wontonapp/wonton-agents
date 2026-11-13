@@ -23,6 +23,8 @@
 # 要模型回答的子项（模型能回话、经聊天调工具、确认卡片、打断、续聊）要先接模型上游（WONTON_DEV_MODEL_*），没接时记 N/A。
 # 等模型回答默认 240 秒，慢的 Agent 在探针里设 AGENT_WAIT（秒）。
 # 等确认卡片默认 120 秒，卡片出得慢的 Agent 在探针里设 AGENT_CARD_WAIT（秒）；要模型先想才出卡的给到 300 以上。
+# Agent 默认模式必须出卡的插件（每条命令都要用户确认）设 AGENT_CARD_REQUIRED=1：确认卡片哪一问没出卡都记
+# FAIL，不按“CLI 免确认直接执行”放宽成 N/A；默认 0。
 # 只要 Bot 回了话就算数的（加密私聊、名单外不应答）不要模型：没有模型时 Bot 回的报错也是一条加密回复。
 #
 # 有的 Agent 收到提示先回一句状态就把这一轮结束，真活在后台接着跑（后台积压时回“在忙别的”）：要卡片的子项
@@ -455,12 +457,16 @@ agent_wait_idle() { # <子项>
 }
 
 # 确认卡片：同意一次（命令跑了），拒绝一次（命令没跑）。拒绝那一问没出卡、待答列表为空、而同意那一问刚跑过时，
-# 当成“CLI 没再询问”，这一问记 N/A（不算失败）；出了卡仍严格验。不给参数时让 Agent 用 shell 跑 echo，看聊天里的输出
+# 当成“CLI 没再询问”，这一问记 N/A（不算失败；AGENT_CARD_REQUIRED=1 时改记 FAIL，见上）；出了卡仍严格验。
+# 不给参数时让 Agent 用 shell 跑 echo，看聊天里的输出
 # 和回答。[服务]：这家 Agent 只在写工作区时才问（只读命令不出卡片，如 Codex 的 read-only、Claude Code 的 default），
 # 改成让它在 /workspace 里 touch 一个文件，以那个服务容器里文件在不在为准：模型有时不等执行结果就先回话，
 # 拒绝后这一轮也可能直接结束、聊天里没有回答。
 agent_check_card() {
-  local file bg svc="${1:-}" container ask_ok ask_no granted=0 runs
+  local file bg svc="${1:-}" container ask_ok ask_no granted=0
+  # 卡片必出的插件（AGENT_CARD_REQUIRED=1）没出卡记 FAIL：缺卡是缺陷，不能按“CLI 免确认直接执行”放宽。
+  local no_card=N/A
+  [[ "${AGENT_CARD_REQUIRED:-0}" == 1 ]] && no_card=FAIL
   agent_need 确认卡片 model || return 0
   agent_wait_idle 确认卡片 || return 0
   if [[ -n "$svc" ]]; then
@@ -486,12 +492,13 @@ agent_check_card() {
     else
       extra_item FAIL 确认卡片 "同意了卡片，等不到命令跑完：$(agent_tail "$AGENT_CARD_LOG" 200)｜$(agent_tail "$(cat "$file")")"
     fi
-  else
-    # 没出卡：命令直接跑了也还是没验到卡片（第一问就是要验它出不出卡），只在证据里写明跑没跑。
+  elif [[ -n "$svc" ]] && docker exec "$container" test -e /workspace/card-ok 2>/dev/null; then
+    # 没出卡但命令跑了：CLI 免确认直接执行，卡片语义验不到。
     kill "$bg" 2>/dev/null; wait "$bg"
-    runs="没跑"
-    [[ -z "$svc" ]] || docker exec "$container" test -e /workspace/card-ok 2>/dev/null && runs="命令直接跑了（$svc 里有 card-ok）"
-    extra_item FAIL 确认卡片 "让 Agent 跑命令，等不到确认卡片（$runs）：$(agent_tail "$AGENT_CARD_LOG" 200)｜$(agent_tail "$(cat "$file")")"
+    extra_item "$no_card" 确认卡片 "CLI 没出卡，命令直接跑了（$svc 里有 card-ok），卡片这一问没验到：$(agent_tail "$AGENT_CARD_LOG" 200)"
+  else
+    kill "$bg" 2>/dev/null; wait "$bg"
+    extra_item FAIL 确认卡片 "让 Agent 跑命令，等不到确认卡片：$(agent_tail "$AGENT_CARD_LOG" 200)｜$(agent_tail "$(cat "$file")")"
   fi
   cat "$file"
   # 第二问同样等上一问真的结束：不等时后台还在跑，提示被回一句状态就压到积压里，第二张卡片错过窗口。
@@ -516,11 +523,11 @@ agent_check_card() {
   elif [[ -n "$svc" ]] && docker exec "$container" test -e /workspace/card-no 2>/dev/null; then
     # 没出卡但命令也跑了：无从验“拒绝后没跑”。
     kill "$bg" 2>/dev/null; wait "$bg"
-    extra_item N/A 确认卡片 "第二问 CLI 也没出卡、命令直接跑了（$svc 里有 card-no），拒绝没验到：$(agent_tail "$AGENT_CARD_LOG" 200)"
+    extra_item "$no_card" 确认卡片 "第二问 CLI 也没出卡、命令直接跑了（$svc 里有 card-no），拒绝没验到：$(agent_tail "$AGENT_CARD_LOG" 200)"
   elif ((granted)) && [[ "$AGENT_CARD_EMPTY" == 1 ]]; then
     # 本会话刚对同形状命令放行过、待答列表也是空的：CLI 干脆没再问，这一问验不到。
     kill "$bg" 2>/dev/null; wait "$bg"
-    extra_item N/A 确认卡片 "同意那一问已跑过，CLI 没再询问第二问（待答列表为空），拒绝这一问没验到：$(agent_tail "$AGENT_CARD_LOG" 200)"
+    extra_item "$no_card" 确认卡片 "同意那一问已跑过，CLI 没再询问第二问（待答列表为空），拒绝这一问没验到：$(agent_tail "$AGENT_CARD_LOG" 200)"
   else
     kill "$bg" 2>/dev/null; wait "$bg"
     extra_item FAIL 确认卡片 "第二次跑命令等不到确认卡片：$(agent_tail "$AGENT_CARD_LOG" 200)｜$(agent_tail "$(cat "$file")")"

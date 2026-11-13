@@ -8,6 +8,7 @@ SMOKE_NOTE="claude-code 没有应用账号体系或插件自己的 MCP 服务，
 # 也要确认、只读命令不出卡片：MCP 子项同时等卡片，确认卡片用在工作区建文件验。重启后要等更久才 healthy。
 export EXTRA_TIMEOUT=3600
 export AGENT_HEALTHY_WAIT=360
+export AGENT_CARD_REQUIRED=1
 extra_check() {
   agent_check_chat '请用一句话回答：claude-code 冒烟。记住暗号：青杏。'
   agent_check_model

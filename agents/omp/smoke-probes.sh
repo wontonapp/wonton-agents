@@ -11,6 +11,7 @@ export SMOKE_NOTE="omp 默认使用 magpie；官方订阅须从 /wonton login �
 # Agent 的附加检查（助手见开发套件的 scripts/agent-probes.sh）：首条消息留暗号，重启 agent 和 bridge 以后同一个会话
 # 还要问得回来。一轮十几条消息、每条要等模型，放宽到 50 分钟。
 export EXTRA_TIMEOUT=3000
+export AGENT_CARD_REQUIRED=1
 extra_check() {
   agent_check_chat '请用一句话回答：omp 冒烟。记住暗号：青杏。'
   agent_check_model

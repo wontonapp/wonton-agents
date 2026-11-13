@@ -16,6 +16,7 @@ export SMOKE_NOTE="Codex 没有应用账号体系，登录网页只认核心网�
 
 # read-only 模式下只读命令不出卡片，确认卡片用在工作区建文件验。
 export EXTRA_TIMEOUT=3600
+export AGENT_CARD_REQUIRED=1
 extra_check() {
   agent_check_chat '请用一句话回答：codex 冒烟。记住暗号：青杏。'
   agent_check_model
