@@ -33,6 +33,14 @@
 #       一条数据并把标记原样存进 $SMOKE_STATE，data_check 读回标记去应用里找，对不上就打印看到了什么并返回非 0。
 #       应用不存用户数据时写 DATA_NA=1（两项记 N/A）。
 # 装之前要准备（如先配出口代理）：写 before_install。
+# 设置：清单有 settings 时，冒烟装插件要填的值写 export SMOKE_SETTINGS=(名字=值 …)（如要用户同意许可的必填项），
+#       不写进 Schema 的 default；临时多给几项用 scripts/dev.sh smoke --setting 名字=值。
+# 附加检查：六项之外还要验的（发一条通知、经网关真调一次模型等）写 extra_check，在工具项之后跑、限 EXTRA_TIMEOUT 秒
+#       （默认 600），结果另记一行“附加检查”，失败同样算冒烟失败。一次要验好几件事时，每件用
+#       extra_item <PASS|FAIL|N/A> <子项> <说明> 记一行，结果行是“附加检查·<子项>”，任一子项 FAIL 即失败。
+#       Agent 插件（扮演用户手机发加密消息、确认卡片、名单外不应答等）组合 scripts/agent-probes.sh 的 agent_check_*，
+#       写法见那个文件的开头。
+# 探针自己起的容器（如一次性的对端服务）加上标签 wonton.instance=$SMOKE_INSTANCE，冒烟结束时随实例一起删掉。
 
 web_assert() { grep -q '你好'; }   # 示例页的标题
 
@@ -46,4 +54,16 @@ identity_check() { # 页面回显的就是网关注入的用户名；示例页�
 #   data_write 用随机标记写一条数据，把标记原样覆盖写进 $SMOKE_STATE（一个已建好的空文件，不是目录）；data_check 读回标记、去应用里找，
 #   找不到就打印看到了什么并返回非 0。
 # 应用不存用户数据时写 DATA_NA=1（两项记 N/A）。模板的示例页不存数据，所以这里是不适用。
+# 数据要写进插件容器时（Agent 插件的工作区标记等），容器名别自己拼：钩子契约里没有 SMOKE_SLUG，e2e 套件的
+# data_write 又跑在实例名导出之前，拼出来的名字缺段（No such container）；Bot 服务（清单声明了 bots）每个 Bot
+# 一组容器，名字还带 --<Bot 名> 后缀。按核心打的标签找，插件自带 smoke 和 e2e 套件两个运行环境都成立
+# （实例名没导出时按 SMOKE_BASE 的主机名第一段推）：
+#   _container() { # <插件 id> <服务名>：本实例里这个服务的容器
+#     local inst="${SMOKE_INSTANCE:-}" args=(--filter "label=wonton.plugin=$1" --filter "label=wonton.service=$2")
+#     if [[ -z "$inst" && -n "${SMOKE_BASE:-}" ]]; then
+#       inst="${SMOKE_BASE#http://}"; inst="${inst%%.*}"
+#     fi
+#     [[ -z "$inst" ]] || args+=(--filter "label=wonton.instance=${inst//-/}")
+#     docker ps --format '{{.Names}}' "${args[@]}" | head -1
+#   }
 export DATA_NA=1

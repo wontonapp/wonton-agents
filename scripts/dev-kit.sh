@@ -84,6 +84,11 @@ kit_update() (
   done
   for path in "${files[@]}" scripts/KIT; do
     [[ "$keep" != *" $path "* ]] || continue
+    # 探针是插件自己的钩子（develop.md“更新开发套件”）：已有就不覆盖，只给缺这份文件的仓库补模板的起点。
+    if [[ "$path" == scripts/smoke-probes.sh && -f "$root/$path" ]]; then
+      info "保留你自己的 scripts/smoke-probes.sh，套件不覆盖。"
+      continue
+    fi
     mv "$stage/$path" "$root/$path"
   done
   if [[ -f "$root/.github/workflows/plugin-check.yml" ]]; then
