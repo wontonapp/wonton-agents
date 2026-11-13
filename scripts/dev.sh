@@ -24,7 +24,9 @@
 #   scripts/dev.sh model <上游地址> <模型> <key 文件>  把 OpenAI 兼容的服务商接成模型网关的上游（key 只从文件读）
 #   scripts/dev.sh mcp list                   Bot 经 MCP 总线能调到的工具（JSON）
 #   scripts/dev.sh mcp call <工具> [<JSON>]   经 MCP 总线调用工具，参数是 JSON 对象，默认 {}
-#   scripts/dev.sh mcp --direct list|call …   直连工作区清单的 MCP 服务，只调试插件本身，不走总线权限和确认
+#   scripts/dev.sh mcp --direct list|call …   直连工作区清单的 MCP 服务，只调试插件本身，不走总线权限和确认；
+#                                             不依赖装了什么插件（客户端是自带镜像里的官方 MCP Inspector CLI），
+#                                             标准输出是 {"result":…} 包着的 JSON，isError/连不上退出非 0
 #   scripts/dev.sh approve [--watch]          用主人令牌批准确认卡片；--watch 持续批准，Ctrl-C 停止
 #   scripts/dev.sh smoke                      对工作区的插件跑合并前的端到端冒烟：起一套一次性实例，跑完清理（参数见 smoke.sh 开头）
 #   scripts/dev.sh probes [<探针名>…]          对装着的工作区插件跑冒烟探针（web_assert、identity_check、mcp、extra_check、data_write、data_check），不起新实例；给了名字就只跑那几项
