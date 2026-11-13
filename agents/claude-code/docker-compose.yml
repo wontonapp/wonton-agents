@@ -4,7 +4,7 @@
 # agent，agent 的 HOME 不给 bridge。
 services:
   agent:
-    image: ghcr.io/wontonapp/wonton-agents/claude-code:0.1.3
+    image: ghcr.io/wontonapp/wonton-agents/claude-code:0.1.4
     # 底座镜像固定用 65532，入口不再降权；bridge 挂同一个 run/ 目录，两个服务的属主必须相同。
     user: "65532:65532"
     restart: unless-stopped
@@ -73,7 +73,7 @@ services:
   # 登录网页的入口：webui 不能指向 Bot 服务（旧核心仍按这条判），而登录页在 agent 容器里（每个 Bot 一份），
   # 所以架一个全插件一份的转发。插件页只开默认 Bot 的那一份，聊天里的 /wonton login 用当前 Bot。
   web:
-    image: ghcr.io/wontonapp/wonton-agents/claude-code:0.1.3
+    image: ghcr.io/wontonapp/wonton-agents/claude-code:0.1.4
     user: "65532:65532"
     restart: unless-stopped
     entrypoint: ["python3", "/usr/local/lib/wonton-agent/web-proxy"]
@@ -91,7 +91,7 @@ services:
 x-wonton:
   spec: "0.6"
   id: ai.claude-code
-  version: 0.1.3
+  version: 0.1.4
   kind: agent
   title: { zh: AI 编程助手（Claude Code）, en: Coding Bot (Claude Code) }
   description:
@@ -123,10 +123,10 @@ x-wonton:
       is required. Select magpie to return to the gateway. API-key and Console API billing logins
       are not offered.
   release_notes:
-    zh: 模型默认走 magpie；只有明确完成订阅登录才直连官方。网关未就绪会明确报错，移除 API key 和 Console 计费登录。
-    en: Models use magpie by default; only explicit subscription sign-in selects the official service. Gateway errors are reported without fallback. API-key and Console billing logins were removed.
-    zh-Hant: 模型預設走 magpie；只有明確完成訂閱登入才直連官方。網關未就緒會明確報錯，移除 API key 和 Console 計費登入。
-    ja: モデルは既定で magpie を利用し、サブスクリプションへの明示的なログイン時のみ公式サービスを使います。ゲートウェイ未準備時はエラーを表示し、API キーと Console 課金のログインを削除しました。
+    zh: 更新底座到 0.1.2，修复模型来源模块缺失导致的启动错误；网关未就绪仍明确报错，不会回退。
+    en: Updates the base image to 0.1.2, fixing startup when the model-source module is missing; gateway errors remain explicit with no fallback.
+    zh-Hant: 更新底座至 0.1.2，修復模型來源模組缺失造成的啟動錯誤；網關未就緒仍明確報錯，不會退回。
+    ja: ベースイメージを 0.1.2 に更新し、モデルソースモジュール不足による起動エラーを修正しました。ゲートウェイ未準備時は明示的にエラーを示し、フォールバックしません。
   webui:
     service: web
     port: 8080

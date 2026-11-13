@@ -1,6 +1,6 @@
 # omp 的 Agent 层：公共底座加官方二进制和这份配置。omp 是开源 CLI（MIT），直接打进镜像。
 # 底座按摘要固定，防镜像漂移；底座升级改这一行重新构建。
-ARG BASE_IMAGE=ghcr.io/wontonapp/wonton-agent-base:0.1.0@sha256:5cba94459910395888a969190420492bd58f88a2928a2f8f9a7deb8b849519e9
+ARG BASE_IMAGE=ghcr.io/wontonapp/wonton-agent-base:0.1.2@sha256:032c7ee53bb0ae594c04911ebb1364154c33de9465a5421a4c2f43c166c30849
 FROM ${BASE_IMAGE}
 
 ARG TARGETARCH

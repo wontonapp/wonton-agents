@@ -1,6 +1,6 @@
 # Kimi Code 子镜像：底座加配置、网关钩子和订阅登录状态脚本。
 # 底座按摘要固定，防镜像漂移；底座升级改这一行重新构建。
-ARG BASE_IMAGE=ghcr.io/wontonapp/wonton-agent-base:0.1.1@sha256:1f66748aa0f30bae92496fabd35bebc35d9fb965762096b876a4b45c1ad2cab2
+ARG BASE_IMAGE=ghcr.io/wontonapp/wonton-agent-base:0.1.2@sha256:032c7ee53bb0ae594c04911ebb1364154c33de9465a5421a4c2f43c166c30849
 FROM ${BASE_IMAGE}
 COPY agent.toml /etc/wonton-agent/
 COPY --chmod=0755 gateway acp-launch /usr/local/lib/wonton-agent/
