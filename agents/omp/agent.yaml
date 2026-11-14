@@ -1,5 +1,5 @@
 id: ai.omp.agent
-version: 0.1.7
+version: 0.1.8
 title: { zh: AI 编程助手（omp）, en: Coding Bot (omp) }
 description:
   zh: 自带工具的编程助手：先列计划，跑命令前弹卡片确认。默认使用 magpie 模型网关，也能明确选择受支持的官方订阅登录。
@@ -22,10 +22,10 @@ about:
     cards before running commands; Wonton plugin tools are called from the chat.
     The chat is an encrypted direct message the core creates, and it carries on after a restart.
 release_notes:
-  zh: 更新底座到 0.1.2，修复模型来源模块缺失导致的启动错误；模型未就绪时明确提示，不会改用其他来源。
-  en: Updates the base image to 0.1.2, fixing startup when the model-source module is missing; an unready model reports clearly without switching sources.
-  zh-Hant: 更新底座至 0.1.2，修復模型來源模組缺失造成的啟動錯誤；模型未就緒時明確提示，不會改用其他來源。
-  ja: ベースイメージを 0.1.2 に更新し、モデルソースモジュール不足による起動エラーを修正しました。モデル未準備時は明示的に通知し、別の接続先に切り替えません。
+  zh: 更新 ACP bridge 到包含旁聊修复的版本，修复旁聊消息被误判为不支持输入的问题。
+  en: Updates the ACP bridge to include the topic-chat fix, preventing topic messages from being misclassified as unsupported input.
+  zh-Hant: 更新 ACP bridge 至包含旁聊修復的版本，修復旁聊訊息被誤判為不支援輸入的問題。
+  ja: ACP bridge を話題チャット修正を含む版に更新し、話題メッセージが入力非対応と誤判定される問題を修正しました。
 license: MIT
 notices: [NOTICE, image/LICENSE.omp]
 homepage: https://omp.sh

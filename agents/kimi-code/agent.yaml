@@ -1,5 +1,5 @@
 id: ai.kimi-code
-version: 0.1.5
+version: 0.1.6
 title: { zh: AI 编程助手（Kimi Code）, en: Coding Bot (Kimi Code) }
 description:
   zh: Kimi（月之暗面）家的编程助手：读代码、改文件、跑命令，改文件和跑命令前都会出确认卡，你同意才执行。默认用 magpie，也可明确选择 Kimi 官方订阅。
@@ -22,10 +22,10 @@ about:
     the plugin login page or /wonton login to use the official subscription independently of the
     gateway. Select magpie to return. Platform API-key login is not offered.
 release_notes:
-  zh: 更新底座到 0.1.2，修复模型来源模块缺失导致的启动错误；网关出错不再自动换来源。
-  en: Updates the base image to 0.1.2, fixing startup when the model-source module is missing; gateway errors do not change the selected source.
-  zh-Hant: 更新底座至 0.1.2，修復模型來源模組缺失造成的啟動錯誤；網關出錯不再自動更換來源。
-  ja: ベースイメージを 0.1.2 に更新し、モデルソースモジュール不足による起動エラーを修正しました。ゲートウェイエラーで接続先を変更しません。
+  zh: 更新 ACP bridge 到包含旁聊修复的版本，修复旁聊消息被误判为不支持输入的问题。
+  en: Updates the ACP bridge to include the topic-chat fix, preventing topic messages from being misclassified as unsupported input.
+  zh-Hant: 更新 ACP bridge 至包含旁聊修復的版本，修復旁聊訊息被誤判為不支援輸入的問題。
+  ja: ACP bridge を話題チャット修正を含む版に更新し、話題メッセージが入力非対応と誤判定される問題を修正しました。
 license: MIT
 notices: [NOTICE]
 homepage: https://github.com/wontonapp/wonton-agents

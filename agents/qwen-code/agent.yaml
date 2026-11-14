@@ -1,5 +1,5 @@
 id: ai.qwen-code
-version: 0.1.4
+version: 0.1.5
 title: { zh: AI 编程助手（Qwen Code）, en: Coding Bot (Qwen Code) }
 description:
   zh: 阿里巴巴（通义千问）家的编程助手：通过 magpie 模型网关，在聊天里帮你写代码、改文件、跑命令，动手前先弹卡片问你。
@@ -22,10 +22,10 @@ about:
     commands; Wonton plugin tools are called from the chat.
     The chat is an encrypted direct message the core creates, and it carries on after a restart.
 release_notes:
-  zh: 更新底座到 0.1.2，修复模型来源模块缺失导致的启动错误；网关未就绪时明确报错，不会恢复其他服务。
-  en: Updates the base image to 0.1.2, fixing startup when the model-source module is missing; an unavailable gateway reports an error instead of restoring another service.
-  zh-Hant: 更新底座至 0.1.2，修復模型來源模組缺失造成的啟動錯誤；網關未就緒時明確報錯，不會恢復其他服務。
-  ja: ベースイメージを 0.1.2 に更新し、モデルソースモジュール不足による起動エラーを修正しました。ゲートウェイ未準備時はエラーを示し、別サービスを復元しません。
+  zh: 更新 ACP bridge 到包含旁聊修复的版本，修复旁聊消息被误判为不支持输入的问题。
+  en: Updates the ACP bridge to include the topic-chat fix, preventing topic messages from being misclassified as unsupported input.
+  zh-Hant: 更新 ACP bridge 至包含旁聊修復的版本，修復旁聊訊息被誤判為不支援輸入的問題。
+  ja: ACP bridge を話題チャット修正を含む版に更新し、話題メッセージが入力非対応と誤判定される問題を修正しました。
 license: Apache-2.0
 notices: [NOTICE, image/LICENSE.qwen-code]
 homepage: https://github.com/QwenLM/qwen-code

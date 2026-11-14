@@ -1,5 +1,5 @@
 id: ai.deepseek.dsh
-version: 0.1.5
+version: 0.1.6
 title: { zh: dsh, en: dsh }
 description:
   zh: DeepSeek 的编程 Agent（dsh），在聊天里写代码、跑命令
@@ -18,10 +18,10 @@ about:
     explicit error, never a switch to official services or saved keys. The built-in DeepSeek model-backed
     search does not support the gateway protocol and is disabled; web fetching and MCP tools remain available.
 release_notes:
-  zh: 更新底座到 0.1.2，修复模型来源模块缺失导致的启动错误；网关未就绪时明确报错，不会改连其他服务。
-  en: Updates the base image to 0.1.2, fixing startup when the model-source module is missing; an unavailable gateway reports an error instead of switching services.
-  zh-Hant: 更新底座至 0.1.2，修復模型來源模組缺失造成的啟動錯誤；網關未就緒時明確報錯，不會改連其他服務。
-  ja: ベースイメージを 0.1.2 に更新し、モデルソースモジュール不足による起動エラーを修正しました。ゲートウェイ未準備時はエラーを示し、別サービスに切り替えません。
+  zh: 更新 ACP bridge 到包含旁聊修复的版本，修复旁聊消息被误判为不支持输入的问题。
+  en: Updates the ACP bridge to include the topic-chat fix, preventing topic messages from being misclassified as unsupported input.
+  zh-Hant: 更新 ACP bridge 至包含旁聊修復的版本，修復旁聊訊息被誤判為不支援輸入的問題。
+  ja: ACP bridge を話題チャット修正を含む版に更新し、話題メッセージが入力非対応と誤判定される問題を修正しました。
 license: MIT
 notices: [NOTICE, image/LICENSE.dsh]
 homepage: https://github.com/deepseek-ai/deepseek-harness
