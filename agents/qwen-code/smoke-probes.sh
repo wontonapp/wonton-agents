@@ -3,6 +3,7 @@
 # 通用插件冒烟只验证清单能装上；Matrix 加密私聊、模型回答和 Wonton MCP 在专项验收里实测。
 IDENTITY_NA=1
 SMOKE_NOTE="qwen-code 没有登录网页、应用账号体系或自己的 MCP 服务；模型只走 magpie。专项验收验证加密 Matrix 私聊、模型回答和 Wonton MCP 只读工具。"
+export AGENT_CARD_REQUIRED=1
 
 
 # 数据：工作区文件保存在 Bot 数据卷中。

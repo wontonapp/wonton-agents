@@ -13,6 +13,7 @@ web_assert() {
 
 # Agent 没有用户体系：登录网页认的是核心网关的会话。probes.sh 从这份文件读这两个变量。
 export IDENTITY_NA=1
+export AGENT_CARD_REQUIRED=1
 
 # 数据探针：把标记写进 agent 容器的 /workspace（挂的是 ${WONTON_BOT_DATA}/workspace 卷），
 # 升级和重装后读回，验证主人给 Agent 的工作区文件不丢。
