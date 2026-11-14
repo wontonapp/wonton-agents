@@ -1,5 +1,5 @@
 id: ai.opencode
-version: 0.1.4
+version: 0.1.5
 title: { zh: AI 编程助手（OpenCode）, en: Coding Bot (OpenCode) }
 description:
   zh: 开源的编程助手：通过 magpie 模型网关读代码、改文件、跑命令，改动前先弹卡片问你。
@@ -21,10 +21,10 @@ about:
     OpenCode edits files and runs commands: the main session runs in plan mode and topic sessions
     follow it, so edits and commands always ask first via confirmation cards.
 release_notes:
-  zh: 更新底座到 0.1.2，修复模型来源模块缺失导致的启动错误；网关未就绪时明确报错，不再回退。
-  en: Updates the base image to 0.1.2, fixing startup when the model-source module is missing; an unavailable gateway reports an error instead of falling back.
-  zh-Hant: 更新底座至 0.1.2，修復模型來源模組缺失造成的啟動錯誤；網關未就緒時明確報錯，不再退回。
-  ja: ベースイメージを 0.1.2 に更新し、モデルソースモジュール不足による起動エラーを修正しました。ゲートウェイ未準備時はエラーを示し、フォールバックしません。
+  zh: 更新 ACP bridge 到包含旁聊修复的版本，修复旁聊消息被误判为不支持输入的问题。
+  en: Updates the ACP bridge to include the topic-chat fix, preventing topic messages from being misclassified as unsupported input.
+  zh-Hant: 更新 ACP bridge 至包含旁聊修復的版本，修復旁聊訊息被誤判為不支援輸入的問題。
+  ja: ACP bridge を話題チャット修正を含む版に更新し、話題メッセージが入力非対応と誤判定される問題を修正しました。
 license: MIT
 notices: [NOTICE]
 homepage: https://github.com/wontonapp/wonton-agents

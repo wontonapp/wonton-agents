@@ -1,5 +1,5 @@
 id: ai.codex
-version: 0.1.4
+version: 0.1.5
 title: { zh: AI 编程助手（Codex）, en: Coding Bot (Codex) }
 description:
   zh: OpenAI（ChatGPT）家的编程助手：在聊天里帮你写代码、改文件、跑命令，规矩最严——默认只能看，要改动前都先弹卡片问你。直接用模型设置就行，也能登录 ChatGPT 订阅。
@@ -17,10 +17,10 @@ about:
     to return to Models. It asks through confirmation cards before protected changes;
     tools provided by your apps work from the chat too.
 release_notes:
-  zh: 更新底座到 0.1.2，修复模型来源模块缺失导致的启动错误；模型未就绪时仍明确提示，不会切换来源。
-  en: Updates the base image to 0.1.2, fixing startup when the model-source module is missing; an unready model still reports clearly without switching sources.
-  zh-Hant: 更新底座至 0.1.2，修復模型來源模組缺失造成的啟動錯誤；模型未就緒時仍明確提示，不會切換來源。
-  ja: ベースイメージを 0.1.2 に更新し、モデルソースモジュール不足による起動エラーを修正しました。モデル未準備時は明示的に通知し、接続先を切り替えません。
+  zh: 更新 ACP bridge 到包含旁聊修复的版本，修复旁聊消息被误判为不支持输入的问题。
+  en: Updates the ACP bridge to include the topic-chat fix, preventing topic messages from being misclassified as unsupported input.
+  zh-Hant: 更新 ACP bridge 至包含旁聊修復的版本，修復旁聊訊息被誤判為不支援輸入的問題。
+  ja: ACP bridge を話題チャット修正を含む版に更新し、話題メッセージが入力非対応と誤判定される問題を修正しました。
 license: Apache-2.0
 notices: [NOTICE]
 homepage: https://github.com/openai/codex

@@ -4,7 +4,7 @@
 # agent，agent 的 HOME 不给 bridge。
 services:
   agent:
-    image: ghcr.io/wontonapp/wonton-agents/codex:0.1.4
+    image: ghcr.io/wontonapp/wonton-agents/codex:0.1.5
     # 底座镜像固定用 65532，入口不再降权；bridge 挂同一个 run/ 目录，两个服务的属主必须相同。
     user: "65532:65532"
     restart: unless-stopped
@@ -34,7 +34,7 @@ services:
 
   bridge:
     # 桥镜像的版本和摘要只写这一处；桥升级改这里，再重新生成所有子目录。
-    image: ghcr.io/wontonapp/wonton-acp-bridge:main-c69aebc@sha256:ce235c94454fdad3fbac729db5d21a8bcdec88688f43e6cd9aebe9efbac2c85d
+    image: ghcr.io/wontonapp/wonton-acp-bridge:main-452a377@sha256:1d4526dc5b552a08dc6eb8c17f68d0fb0eb08506b815c842edc34914acf2d3c1
     user: "65532:65532"
     restart: unless-stopped
     depends_on:
@@ -69,7 +69,7 @@ services:
   # 登录网页的入口：webui 不能指向 Bot 服务（旧核心仍按这条判），而登录页在 agent 容器里（每个 Bot 一份），
   # 所以架一个全插件一份的转发。插件页只开默认 Bot 的那一份，聊天里的 /wonton login 用当前 Bot。
   web:
-    image: ghcr.io/wontonapp/wonton-agents/codex:0.1.4
+    image: ghcr.io/wontonapp/wonton-agents/codex:0.1.5
     user: "65532:65532"
     restart: unless-stopped
     entrypoint: ["python3", "/usr/local/lib/wonton-agent/web-proxy"]
@@ -87,7 +87,7 @@ services:
 x-wonton:
   spec: "0.6"
   id: ai.codex
-  version: 0.1.4
+  version: 0.1.5
   kind: agent
   title: { zh: AI 编程助手（Codex）, en: Coding Bot (Codex) }
   description:
@@ -112,10 +112,10 @@ x-wonton:
       to return to Models. It asks through confirmation cards before protected changes;
       tools provided by your apps work from the chat too.
   release_notes:
-    zh: 更新底座到 0.1.2，修复模型来源模块缺失导致的启动错误；模型未就绪时仍明确提示，不会切换来源。
-    en: Updates the base image to 0.1.2, fixing startup when the model-source module is missing; an unready model still reports clearly without switching sources.
-    zh-Hant: 更新底座至 0.1.2，修復模型來源模組缺失造成的啟動錯誤；模型未就緒時仍明確提示，不會切換來源。
-    ja: ベースイメージを 0.1.2 に更新し、モデルソースモジュール不足による起動エラーを修正しました。モデル未準備時は明示的に通知し、接続先を切り替えません。
+    zh: 更新 ACP bridge 到包含旁聊修复的版本，修复旁聊消息被误判为不支持输入的问题。
+    en: Updates the ACP bridge to include the topic-chat fix, preventing topic messages from being misclassified as unsupported input.
+    zh-Hant: 更新 ACP bridge 至包含旁聊修復的版本，修復旁聊訊息被誤判為不支援輸入的問題。
+    ja: ACP bridge を話題チャット修正を含む版に更新し、話題メッセージが入力非対応と誤判定される問題を修正しました。
   webui:
     service: web
     port: 8080
