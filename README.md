@@ -80,6 +80,10 @@ scripts/dev.sh smoke
 `scripts/dev.sh` 的完整用法见脚本头部；状态放在 `.wonton/<目录名>/`，几家可以同时起。升级开发脚本用
 `scripts/dev.sh kit-update`（来自 wonton-plugin-template 的提交，版本记在 `scripts/KIT`）。
 
+`scripts/dev.sh model <上游地址> <模型> <key 文件>` 只用一次性、限定模型的开发 key：宿主进程参数不含 key，
+key 经标准输入交给本实例的模型网关，但容器内的 magpie 命令参数可能含 key，网关数据目录也会保存它；验完在上游吊销。
+脚本先请求上游模型列表，再添加服务商；默认组由网关同步，添加成功不代表模型对话已验证。
+
 ## 检查
 
 `check.yml` 先按改动的路径算出哪些子目录受影响：改 `base/`、`template/`、`gen/` 或 `scripts/` 就是全部。受影响的

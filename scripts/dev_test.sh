@@ -29,7 +29,7 @@ case "${1:-}" in
     esac
     ;;
   ps) printf 'wonton-test--app-web--web\nwonton-test--app-web--web--bot\nwonton-test--db--db\n' ;;
-  info) printf '%s\n' "${FAKE_OS:-Ubuntu 24.04 LTS}" ;;
+  info) [[ "${FAKE_INFO_FAIL:-}" != 1 ]] || exit 1; printf '%s\n' "${FAKE_OS:-Ubuntu 24.04 LTS}" ;;
   network) [[ -n "${FAKE_GATEWAY:-}" ]] && printf '%s\n' "$FAKE_GATEWAY" ;;
   logs) printf 'plugin-logs:%s\n' "$*" ;;
   inspect) printf '%s\n' "${FAKE_RUNNING:-true}" ;;
@@ -43,6 +43,15 @@ case "${1:-}" in
     ;;
   exec)
     shift
+    if [[ "${1:-}" == -i ]]; then
+      shift
+      printf '%s\n' "$@" >"${FAKE_MODEL_ARGS:?}"
+      printf '%s\n' "$1" >"${FAKE_MODEL_TARGET:?}"
+      if env | grep -qF -- "$(cat "${FAKE_KEY_FILE:?}")"; then exit 90; fi
+      shift
+      "$@"
+      exit $?
+    fi
     case "$1" in
       *--core)
         case "${2:-}" in
@@ -72,6 +81,15 @@ chmod +x "$bin/docker"
 # 一样退出；FAKE_ANSWER_FAIL=<卡片 id> 让那张卡的 POST 像被核心拒掉一样回 409。
 cat >"$bin/curl" <<'CURL'
 #!/usr/bin/env bash
+if [[ " $* " == *' --header @- '* ]]; then
+  IFS= read -r header
+  [[ "$header" == "Authorization: Bearer $(cat "${FAKE_KEY_FILE:?}")" ]] || exit 92
+  if [[ "${FAKE_MODEL_FAIL:-}" == upstream ]]; then
+    echo 'upstream unavailable' >&2
+    exit 7
+  fi
+  exit 0
+fi
 url="${*: -1}"
 method=GET
 body=""
@@ -132,16 +150,24 @@ PY
   */settings)
     cat "${FAKE_STORED_FILE:?}"
     ;;
-  */_wonton/api/models/custom-provider)
-    printf '%s\n' "$*" >"${FAKE_ARGS_FILE:?}"
-    cat >"${FAKE_BODY_FILE:?}"
-    ;;
   *)
     printf '%s\n' "$FAKE_SETTINGS"
     ;;
 esac
 CURL
 chmod +x "$bin/curl"
+
+cat >"$bin/magpie" <<'MAGPIE'
+#!/usr/bin/env bash
+printf '%s\n' "${@:1:5}" >"${FAKE_MODEL_CALL:?}"
+[[ "${6:-}" == "key=$(cat "${FAKE_KEY_FILE:?}")" ]] || exit 91
+if [[ "${FAKE_MODEL_FAIL:-}" == cli ]]; then
+  printf 'provider rejected %s\n' "$6" >&2
+  exit 23
+fi
+printf 'provider accepted %s\n' "$6"
+MAGPIE
+chmod +x "$bin/magpie"
 
 failed=0
 # run <期望退出码> <变量…> -- <参数…>：跑 dev.sh，输出留在 $out、$err。
@@ -292,28 +318,58 @@ stored 20
 run 1 "FAKE_PREVIEW_FILE=$work/settings-preview.json" -- upgrade --yes --setting players=5 || true
 has "$err" "核心没存下给的设置值" "值没存下要报错"
 
-# model：key 只经标准输入进请求体，不出现在 curl 的参数和 dev.sh 的输出里。
+# model：执行容器里的探测与 CLI；key 不进入宿主 docker 参数、环境或输出。
 printf 'sk-test-only-1234\n' >"$work/model.key"
-export FAKE_ARGS_FILE="$work/model.args" FAKE_BODY_FILE="$work/model.body"
-run 0 -- model http://192.0.2.10:3425/v1 some-model "$work/model.key" || true
-has "$out" "模型网关接上了 http://192.0.2.10:3425/v1 的 some-model" "接好要报上游和模型"
-has "$(cat "$FAKE_BODY_FILE")" '{"base_url": "http://192.0.2.10:3425/v1", "model": "some-model", "key": "sk-test-only-1234"}' "请求体带上 key 文件里的 key"
-if grep -q sk-test-only "$FAKE_ARGS_FILE" || [[ "$out$err" == *sk-test-only* ]]; then
-  echo "FAIL key 出现在 curl 参数或输出里" >&2
+export FAKE_KEY_FILE="$work/model.key" FAKE_MODEL_ARGS="$work/model.args"
+export FAKE_MODEL_TARGET="$work/model.target" FAKE_MODEL_CALL="$work/model.call"
+run 0 -- model http://192.0.2.10:3425/v1 provider/some-model "$work/model.key" || true
+has "$(cat "$FAKE_MODEL_TARGET")" "wonton-test--ai-usemagpie-magpie--magpie" "使用本实例模型网关"
+has "$(cat "$FAKE_MODEL_CALL")" "url=http://192.0.2.10:3425/v1" "CLI 接收上游地址"
+has "$(cat "$FAKE_MODEL_CALL")" "models=some-model" "CLI 过滤模型时去掉服务商前缀"
+if grep -qF 'sk-test-only-1234' "$FAKE_MODEL_ARGS" || [[ "$out$err" == *sk-test-only-1234* ]]; then
+  echo "FAIL key 出现在宿主 docker 参数或输出里" >&2
   failed=$((failed + 1))
 fi
+printf 'WONTON_INSTANCE=another\n' >"$state/.env"
+run 0 -- model http://192.0.2.10/v1 m "$work/model.key" || true
+has "$(cat "$FAKE_MODEL_TARGET")" "wonton-another--ai-usemagpie-magpie--magpie" "切换实例时不碰别人的网关"
+printf 'WONTON_INSTANCE=test\n' >"$state/.env"
+
+run 1 FAKE_MODEL_FAIL=cli -- model http://192.0.2.10/v1 m "$work/model.key" || true
+has "$err" "provider rejected" "CLI 失败时保留原因"
+if [[ "$out$err" == *sk-test-only-1234* || "$out" == *"已向模型网关添加"* ]]; then
+  echo "FAIL CLI 失败泄漏 key 或报告成功" >&2
+  failed=$((failed + 1))
+fi
+: >"$FAKE_MODEL_CALL"
+run 1 FAKE_MODEL_FAIL=upstream -- model http://192.0.2.10/v1 m "$work/model.key" || true
+has "$err" "upstream unavailable" "上游不可达时报告原因"
+if [[ -s "$FAKE_MODEL_CALL" ]]; then
+  echo "FAIL 上游不可达时仍然添加服务商" >&2
+  failed=$((failed + 1))
+fi
+run 1 FAKE_RUNNING=false -- model http://192.0.2.10/v1 m "$work/model.key" || true
+has "$err" "模型网关容器" "网关容器未运行时报告原因"
 
 # Linux 上 host.docker.internal 换成模型网关插件网络的网关地址；Docker Desktop、OrbStack 上原样用。
 run 0 FAKE_GATEWAY=198.51.100.1 -- model http://host.docker.internal:3425/v1 m "$work/model.key" || true
-has "$(cat "$FAKE_BODY_FILE")" '"base_url": "http://198.51.100.1:3425/v1"' "Linux 上换成网关地址"
+has "$(cat "$FAKE_MODEL_CALL")" "url=http://198.51.100.1:3425/v1" "Linux 上换成网关地址"
 run 0 "FAKE_OS=Docker Desktop" -- model http://host.docker.internal:3425/v1 m "$work/model.key" || true
-has "$(cat "$FAKE_BODY_FILE")" '"base_url": "http://host.docker.internal:3425/v1"' "Docker Desktop 上原样用"
+has "$(cat "$FAKE_MODEL_CALL")" "url=http://host.docker.internal:3425/v1" "Docker Desktop 上原样用"
 run 1 -- model http://host.docker.internal:3425/v1 m "$work/model.key" || true
-has "$err" "找不到模型网关的插件网络" "Linux 上找不到网络要报错"
+has "$err" "查询模型网关的插件网络失败" "查询网络失败要报错"
+run 1 FAKE_INFO_FAIL=1 -- model http://host.docker.internal:3425/v1 m "$work/model.key" || true
+has "$err" "查不到 Docker 的运行环境" "Docker 信息查询失败要报错"
 
-# key 文件读不到、地址不像地址：报错，不发请求。
+# key 文件读不到、为空或非法，地址不像地址：报错。
 run 1 -- model http://192.0.2.10/v1 m "$work/nope.key" || true
 has "$err" "读不到 key 文件" "key 文件不存在要报错"
+: >"$work/empty.key"
+run 1 -- model http://192.0.2.10/v1 m "$work/empty.key" || true
+has "$err" "读不到 key 文件" "空 key 文件要报错"
+printf 'invalid key\n' >"$work/invalid.key"
+run 1 -- model http://192.0.2.10/v1 m "$work/invalid.key" || true
+has "$err" "key 文件里应该只有一行" "非法 key 要报错"
 run 1 -- model 192.0.2.10/v1 m "$work/model.key" || true
 has "$err" "上游地址要以 http:// 或 https:// 开头" "地址不对要报错"
 
