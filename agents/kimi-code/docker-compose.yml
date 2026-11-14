@@ -4,7 +4,7 @@
 # agent，agent 的 HOME 不给 bridge。
 services:
   agent:
-    image: ghcr.io/wontonapp/wonton-agents/kimi-code:0.1.6
+    image: ghcr.io/wontonapp/wonton-agents/kimi-code:0.1.6@sha256:6ae93a94f054400fb9f45cb4393620cde278a2cc322b22c2620d2dea69d4394a
     # 底座镜像固定用 65532，入口不再降权；bridge 挂同一个 run/ 目录，两个服务的属主必须相同。
     user: "65532:65532"
     restart: unless-stopped
@@ -67,7 +67,7 @@ services:
   # 登录网页的入口：webui 不能指向 Bot 服务（旧核心仍按这条判），而登录页在 agent 容器里（每个 Bot 一份），
   # 所以架一个全插件一份的转发。插件页只开默认 Bot 的那一份，聊天里的 /wonton login 用当前 Bot。
   web:
-    image: ghcr.io/wontonapp/wonton-agents/kimi-code:0.1.6
+    image: ghcr.io/wontonapp/wonton-agents/kimi-code:0.1.6@sha256:6ae93a94f054400fb9f45cb4393620cde278a2cc322b22c2620d2dea69d4394a
     user: "65532:65532"
     restart: unless-stopped
     entrypoint: ["python3", "/usr/local/lib/wonton-agent/web-proxy"]
