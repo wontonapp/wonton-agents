@@ -68,7 +68,7 @@ services:
       start_interval: 2s
   @@WEB_SERVICE@@
 x-wonton:
-  spec: "0.6"
+  spec: "0.9"
   id: @@ID@@
   version: @@VERSION@@
   kind: agent

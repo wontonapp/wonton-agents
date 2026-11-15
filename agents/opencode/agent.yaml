@@ -1,5 +1,5 @@
 id: ai.opencode
-version: 0.1.5
+version: 0.1.6
 title: { zh: AI 编程助手（OpenCode）, en: Coding Bot (OpenCode) }
 description:
   zh: 开源的编程助手：通过 magpie 模型网关读代码、改文件、跑命令，改动前先弹卡片问你。
@@ -21,10 +21,10 @@ about:
     OpenCode edits files and runs commands: the main session runs in plan mode and topic sessions
     follow it, so edits and commands always ask first via confirmation cards.
 release_notes:
-  zh: 更新 ACP bridge 到包含旁聊修复的版本，修复旁聊消息被误判为不支持输入的问题。
-  en: Updates the ACP bridge to include the topic-chat fix, preventing topic messages from being misclassified as unsupported input.
-  zh-Hant: 更新 ACP bridge 至包含旁聊修復的版本，修復旁聊訊息被誤判為不支援輸入的問題。
-  ja: ACP bridge を話題チャット修正を含む版に更新し、話題メッセージが入力非対応と誤判定される問題を修正しました。
+  zh: 更新 ACP bridge 到包含旁聊修复的版本，修复旁聊消息被误判为不支持输入的问题。清单改用插件规范 0.9，并声明使用 Bot 数据卷。
+  en: Updates the ACP bridge to include the topic-chat fix, preventing topic messages from being misclassified as unsupported input. Manifest now uses plugin spec 0.9 and declares the bot data volume.
+  zh-Hant: 更新 ACP bridge 至包含旁聊修復的版本，修復旁聊訊息被誤判為不支援輸入的問題。清單改用外掛規範 0.9，並聲明使用 Bot 資料卷。
+  ja: ACP bridge を話題チャット修正を含む版に更新し、話題メッセージが入力非対応と誤判定される問題を修正しました。マニフェストをプラグイン仕様 0.9 に更新し、Bot データボリュームの使用を宣言しました。
 license: MIT
 notices: [NOTICE]
 homepage: https://github.com/wontonapp/wonton-agents

@@ -92,7 +92,7 @@ services:
       start_interval: 2s
 
 x-wonton:
-  spec: "0.6"
+  spec: "0.9"
   id: ai.claude-code
   version: 0.1.1
   kind: agent
